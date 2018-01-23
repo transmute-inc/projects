@@ -1,0 +1,125 @@
+NOOBS INSTALLATION INSTRUCTIONS
+
+1. Insert a micro SD card that is 8GB or greater in size into USB port of your computer.
+2. Format the SD card using the platform-specific instructions below:
+	Download the SD Association's Formatting Tool https://www.sdcard.org/downloads/formatter_4/eula_windows/
+	Install and run the Formatting Tool on your machine
+	Set "FORMAT SIZE ADJUSTMENT" option to "ON" in the "Options" menu
+	Check that the SD card you inserted matches the one selected by the Tool
+	Click the "Format" button
+3. Download  https://www.raspberrypi.org/downloads/noobs/
+	Extract zip file.
+	Copy the extracted files onto the root directory of SD card 
+	Insert the SD card into your Pi and connect the power supply.
+	Your Pi will now boot into NOOBS and install Debian (Rasperian).
+
+If you are still having difficulties after following these instructions, then please visit 
+the Raspberry Pi Forums ( http://www.raspberrypi.org/forums/ ) for support.
+
+4. Set up OS
+	Set preferences / Mouse and Keyboard settings / US / english(US)
+	Setup Wifi (symbol in upper right hand corner of screen.
+	Download pigpio library from http://abyz.co.uk/rpi/pigpio/
+	install pigpio library to use both the SPI0 and SPI1 ports
+		cd PIGPIO
+		make
+		sudo make install  
+		sudo chmod a+w /var/run/pigpio.pid              (otherwise, gpio will not init.) 
+
+5. Enable SPI and check /boot/overlays/README disable spi0 hardware chipselects
+ (www.raspberrypi.org/documentation/configuration/device-tree.md) 
+
+	sudo nano /boot/config.txt    uncomment (remove #) on 
+	dtparam=spi=on  	# enable SPI0
+
+	##### dtoverlay=spi1-3cs,cs0_pin=gpio16,cs1_pin=gpio26,cs2_pin=gpio13 # enable SPI1 & set CS pins
+	170907 - I oculd not get this to work, so modify the PCB.
+	RLY_1 moved from p1-11 to p1-7 (gpio17->gpio04)
+	RLY_2 moved from pp1-12 -> p1-15 (gpio18->gpio27)
+
+6. Serial port   https://spellfoundry.com/2016/05/29/configuring-gpio-serial-port-raspbian-jessie-including-pi-3/
+6.1 Continue editing /boot/config.txt to enable the serial port
+	enable_uart=1		# enable /dev/ttyS0 (/dev/serial0 is alias)
+6.2 Disable the Console
+	$ sudo systemctl stop serial-getty@ttyS0.service
+	$ sudo systemctl disable serial-getty@ttyS0.service
+
+6.3 Remove the console from the cmdline.txt. If you edit this with:
+	$ sudo nano /boot/cmdline.txt
+
+	you will see something like:
+	dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes root wait
+
+	remove the line: console=serial0,115200 and save and reboot for changes to take effect.
+
+6.4 Clone github repository. www.github.com  user=transmute-inc, pass=proton2018
+
+7. Current status of 32G micro SD cards
+	#1  debian 170925  steps 1-6.4 - Bob (K1 on SD card)
+	#2  debian 170925  steps 1-6.4 copied to Bob
+	#3  last OS before system stopped booting
+	#4  last good (still boots)
+	#5  32g debian 2.4.5 clone of #6 for Chris
+	#6  8g debian 2.4.5 steps 1-6.4 180117
+	#7  8g debian 2.4.5 clone of #6
+	#8  8g free
+	#9  8G fat32 xfer drive
+
+8. Link to dropbox uploader https://www.raspberrypi.org/magpi/dropbox-raspberry-pi/
+	github.com/andreafabrizi/Dropbox-Uploader.git
+	./dropbox_uploader.sh
+	
+github.com/andreafabrizi/Dropbox-Uploader.git
+
+
+set larger font
+http://raspberrypi.stackexchange.com/questions/1453/is-there-a-way-increase-text-size-in-raspbian
+sudo dpkg-reconfigure console-setup
+or
+setfont /usr/share/consolefonts/Lat15-TerminusBold20x10.psf.gz
+setfont /usr/share/consolefonts/Lat15-TerminusBold32x16.psf.gz
+
+
+Text editors are vim, nano, pico     https://itsfoss.com/notepad-alternatives-for-linux/
+install apps 
+sudo apt-get install     (vim,     
+
+install git (if missing)
+sudo apt-get install git-core
+sudo apt-get update
+sudo apt-get upgrade
+
+
+wiringpi.com/download-and-install
+git clone git://git.drogon.net/wiringPi
+
+cd wiringPi
+git pull origin
+
+cd wiringPi
+./build
+
+gpio -v
+gpio readall
+
+
+Here is how to make the rpi work with 3840x2160 monitor, as per 
+https://www.raspberrypi.org/forums/viewtopic.php?f=29&t=187737
+https://www.raspberrypi.org/forums/viewtopic.php?f=38&t=79330
+
+
+I used the below lines in config.txt
+
+    hdmi_group=2
+    hdmi_mode=87
+    hdmi_cvt 3840 2160 24
+    max_framebuffer_width=3840
+    max_framebuffer_height=2160
+    hdmi_pixel_freq_limit=400000000 
+    disable_overscan=1
+    hvs_priority=0x32ff
+
+sudo rpi-update && sudo reboot   
+
+
+  
