@@ -1,0 +1,15 @@
+git config --global user.kim "kim hailey"
+git config --global user.email "kimh@transmute.com"
+git config --global core.editor nano
+
+cd projects
+git init
+
+
+
+git add --all
+git commit -am 'first rpi commit'
+git status
+
+
+git log p6.c
