@@ -134,6 +134,8 @@ unsigned ser_tty, serBaud=9600, serFlags=0;
 unsigned spiBaud=100000;
 int x, rc1, rc2, count=0;
 unsigned char c;
+char buff[4], buff_rx[4];
+
 
 int main(void)
 {
@@ -152,6 +154,23 @@ int main(void)
 	spi.cs_pll = spiOpen(0, spiBaud, 256);	//ce0   18   12	(p1-36->p1-11) 
 	spi.cs_att = spiOpen(1, spiBaud, 256);	//ce1   17   11	(p1-37->p1-12)
 
+
+/*
+	buff[0] = 0x55;
+	buff_rx[0] = 0x99;
+LOOP1:
+	spiWrite(spi.cs_adc, buff, 1);
+	usleep(20);
+	spiWrite(spi.cs_dac, buff, 1);
+	usleep(20);
+	spiWrite(spi.cs_pll, buff, 1);
+	usleep(20);
+	spiWrite(spi.cs_att, buff, 1);
+	usleep(20);
+	goto LOOP1;
+//			spiXfer(spi.cs_adc, buff, buff_rx, 1);
+
+*/
 
     pthread_t *thread_s, *thread_v;		
 
@@ -274,12 +293,37 @@ void *spi_thread( void *ss )
 {
 	int count;
 	spi_c* s = (spi_c*) ss;
+	char buff[4], buff_rx[4];
+
 
 	FILE *fp;
 	fp = fopen( "spi.dat", "w+" );
 	s->fp = fp;
 	count=0;
-	s->cmd='a';  // g(pio), t(atten), p(ll), d(ac), a(dc)
+	s->cmd='s';  // g(pio), t(atten), p(ll), d(ac), a(dc), (s)pi
+	
+	if(s->cmd=='s')
+	{
+	
+		buff[0] = 0x55;
+		buff_rx[0] = 0x99;
+LOOP1:
+		if (s->thread_status == kill ) { goto CLOSE; }
+//		spiWrite(spi.cs_adc, buff, 1);
+		spiXfer(spi.cs_adc, buff, buff_rx, 1);
+		usleep(20);
+		spiWrite(spi.cs_dac, buff, 1);
+		usleep(20);
+		spiWrite(spi.cs_pll, buff, 1);
+		usleep(20);
+		spiWrite(spi.cs_att, buff, 1);
+		usleep(20);
+		goto LOOP1;
+//			spiXfer(spi.cs_adc, buff, buff_rx, 1);
+	}
+
+	
+	
 	
 	if(s->cmd=='g')
 	{
