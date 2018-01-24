@@ -279,7 +279,7 @@ void *spi_thread( void *ss )
 	fp = fopen( "spi.dat", "w+" );
 	s->fp = fp;
 	count=0;
-	s->cmd='d';  // g(pio), t(atten), p(ll), d(ac), a(dc)
+	s->cmd='a';  // g(pio), t(atten), p(ll), d(ac), a(dc)
 	
 	if(s->cmd=='g')
 	{
@@ -322,8 +322,7 @@ PLL:
 		goto PLL;
 	}
 
-	if(s->cmd=='d')
-	{
+	if(s->cmd=='d') {
 		s->dac_flag = init;
 		write_dac();
 DAC:
@@ -334,36 +333,53 @@ DAC:
 		s->dac_test = .4;
 		s->dac_flag = step;
 		write_dac();
-		usleep(100);
+		usleep(50);
 
-		s->cathode = 1.1;
-		s->einzel1 = 1.2;
-		s->einzel2 = 1.3;
-		s->dac_test = 1.4;
+		s->cathode = 2.1;
+		s->einzel1 = 2.2;
+		s->einzel2 = 2.3;
+		s->dac_test = 2.4;
 		s->dac_flag = step;
 		write_dac();
-		usleep(200);	
+		usleep(50);	
 		goto DAC;
 	}
 	
 
-	if(s->cmd=='t')
+	if(s->cmd=='a')		// use DAC to debug ADC
 	{
+		s->dac_flag = init;
+		write_dac();
 		s->adc_flag = init;
 		read_adc();	
 		fprintf( fp, " I %d, AM=%.4f, FP=%.4f, RP=%.4f, SP=%.4f, TST=%.4f\n", 
 		count, spi.ammeter,spi.power_fwrd,spi.power_rev,
 		spi.power_sniffer,spi.adc_test);
-
-ADC:
+		
+		s->dac_flag = step;
+		s->adc_flag = step;
+		
+ADC:	//write dac_test waveform to adc
 		if (s->thread_status == kill ) { goto CLOSE; }
 		count = count + 1;
-		s->adc_flag = step;
+		s->dac_test = .4;
+		write_dac();
+		usleep(5);		
 		read_adc();
+		fprintf( fp, " S %d,  0.4  TST=%.4f\n", count, spi.adc_test);	
+		usleep(500);
+		
+		s->dac_test = 1.4;
+		write_dac();
+		usleep(5);		
+		read_adc();
+		fprintf( fp, " S %d, 1.4  TST=%.4f\n", count, spi.adc_test);	
+		usleep(500);		
+		
+			
 //		fprintf( fp, " S %d, AM=%.4f, FP=%.4f, RP=%.4f, SP=%.4f, TST=%.4f\n",  
 //		count, spi.ammeter,spi.power_fwrd,spi.power_rev,
 //		spi.power_sniffer,spi.adc_test);
-		usleep(500);
 
 		goto ADC;
 	}
@@ -575,13 +591,13 @@ void* read_adc( )
 		goto END;
 	}
 
-ADC:	
+// ADC:	
 	if( spi.adc_flag == step ) {
 		buff[0] = 0xbe;					// Convert! (64000sps)
 		spiWrite(spi.cs_adc, buff, 1);
 		usleep(100); 		
 				
-		for ( n=0; n<1; n++) {
+		for ( n=0; n<6; n++) {
 			buff[0] = spi.adc_reg[n];	//select a channel to read
 			spiWrite(spi.cs_adc, buff, 4);
 			eq.CJ[2]=buff[1];
@@ -591,9 +607,9 @@ ADC:
 			fprintf( spi.fp, " acd %d, = %0x,  %f\n",  n, eq.J, spi.ADC[n]);
 			usleep(100);
 		}
-//		goto END;
+		goto END;
 	}	
-	goto ADC;
+//	goto ADC;
 
 
 END:
@@ -643,7 +659,7 @@ void* write_dac( )
 		I[3] = spi.dac_test * spi.dac_test_gain;
 //		fprintf( spi.fp, " dac= %x,  %x,  %x,  %x\n",I[0], I[1], I[2], I[3]  );	
 
-		for( n=0; n<1; n++) {
+		for( n=0; n<4; n++) {
 			eq.J = I[n];
 			buff[0] = spi.dac_cmd[n];		// send command first
 			buff[1] = eq.CJ[1];
@@ -848,6 +864,8 @@ int help_menu()
 	printf( "g = gnuplot gage.dat\n" );
 	printf( "q = kill vacuum or pulse process\n" );
 	printf( "z = exit program\n" );	
+	printf( "h = THIS help menu\n" );	
+
 	
 	sleep(8);
 	return 0 ;
