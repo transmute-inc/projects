@@ -521,7 +521,7 @@ END:
 void* read_adc( )
 {
 		
-	char buff[4];
+	char buff[4], buff_rx[4];
 	int n;
 
 	if( spi.adc_flag == idle ) {
@@ -596,8 +596,20 @@ void* read_adc( )
 		buff[0] = 0xbe;					// Convert! (64000sps)
 		spiWrite(spi.cs_adc, buff, 1);
 		usleep(100); 		
-				
+
 		for ( n=0; n<6; n++) {
+			buff[0] = spi.adc_reg[n];	//select a channel to read
+			spiXfer(spi.cs_adc, buff, buff_rx, 4);
+			eq.CJ[2]=buff_rx[1];
+			eq.CJ[1]=buff_rx[2];
+			eq.CJ[0]=buff_rx[3];
+			spi.ADC[n] = (float) eq.J / 16777215 * Vref;
+			fprintf( spi.fp, " acd %d, = %0x,  %f\n",  n, eq.J, spi.ADC[n]);
+			usleep(100);
+		}
+
+				
+/*		for ( n=0; n<6; n++) {
 			buff[0] = spi.adc_reg[n];	//select a channel to read
 			spiWrite(spi.cs_adc, buff, 4);
 			eq.CJ[2]=buff[1];
@@ -607,6 +619,8 @@ void* read_adc( )
 			fprintf( spi.fp, " acd %d, = %0x,  %f\n",  n, eq.J, spi.ADC[n]);
 			usleep(100);
 		}
+*/
+
 		goto END;
 	}	
 //	goto ADC;
