@@ -118,7 +118,8 @@ typedef struct spi_control {
 
 int   getch(int ms);		// routine calling definitions
 void *spi_thread( void *s );
-void* gpio_test( );
+void* d_a_test( );
+void *CE_test( );
 void* set_att( );
 void* set_pll( );
 void* read_adc( );
@@ -154,23 +155,6 @@ int main(void)
 	spi.cs_pll = spiOpen(0, spiBaud, 256);	//ce0   18   12	(p1-36->p1-11) 
 	spi.cs_att = spiOpen(1, spiBaud, 256);	//ce1   17   11	(p1-37->p1-12)
 
-
-/*
-	buff[0] = 0x55;
-	buff_rx[0] = 0x99;
-LOOP1:
-	spiWrite(spi.cs_adc, buff, 1);
-	usleep(20);
-	spiWrite(spi.cs_dac, buff, 1);
-	usleep(20);
-	spiWrite(spi.cs_pll, buff, 1);
-	usleep(20);
-	spiWrite(spi.cs_att, buff, 1);
-	usleep(20);
-	goto LOOP1;
-//			spiXfer(spi.cs_adc, buff, buff_rx, 1);
-
-*/
 
     pthread_t *thread_s, *thread_v;		
 
@@ -293,36 +277,23 @@ void *spi_thread( void *ss )
 {
 	int count;
 	spi_c* s = (spi_c*) ss;
-	char buff[4], buff_rx[4];
 
 
 	FILE *fp;
 	fp = fopen( "spi.dat", "w+" );
 	s->fp = fp;
 	count=0;
-	s->cmd='s';  // g(pio), t(atten), p(ll), d(ac), a(dc), (s)pi
+	s->cmd='c';  // g(pio), t(atten), p(ll), d(ac), a(dc), (s)pi (c)hip enable test
 	
 	if(s->cmd=='s')
 	{
-	
-		buff[0] = 0x55;
-		buff_rx[0] = 0x99;
-LOOP1:
-		if (s->thread_status == kill ) { goto CLOSE; }
-//		spiWrite(spi.cs_adc, buff, 1);
-		spiXfer(spi.cs_adc, buff, buff_rx, 1);
-		usleep(20);
-		spiWrite(spi.cs_dac, buff, 1);
-		usleep(20);
-		spiWrite(spi.cs_pll, buff, 1);
-		usleep(20);
-		spiWrite(spi.cs_att, buff, 1);
-		usleep(20);
-		goto LOOP1;
-//			spiXfer(spi.cs_adc, buff, buff_rx, 1);
+		d_a_test();
 	}
 
-	
+	if(s->cmd=='c')
+	{
+		CE_test();
+	}	
 	
 	
 	if(s->cmd=='g')
@@ -444,32 +415,101 @@ CLOSE:							// turn everything off before exit
 }
 
 ///////////////////////////////////////////
-void* gpio_test( )
+void* d_a_test( )
 {
-	// 7=dac_cs(26), 8=adc_cs(24), 9=MISO(21), 10=MOSI(19), 11=s_clk(23), 
-
+	
 	char buff[4];
-	buff[0] = 0x55;
-	buff[1] = 0xff;
-	buff[2] = 0xcc;
-	gpioSetMode(4, PI_OUTPUT); 	
+	float vin, vout;
+	
+	spi.dac_flag = init;
+	write_dac();
+	spi.adc_flag = init;
+	read_adc();	
+	usleep(100); 		
+
+LOOP:
+		if (spi.thread_status == kill ) { goto CLOSE; }
+
+		vin = 0.1;
+		eq.J = vin /Vref * dac_bits;
+		buff[0] = 0x38;				// send command first
+		buff[1] = eq.CJ[1];
+		buff[2] = eq.CJ[0];
+		spiWrite(spi.cs_dac, buff, 3); 
+		usleep(10);
+
+		buff[0] = 0xbe;					// Convert! (64000sps)
+		spiWrite(spi.cs_adc, buff, 1);
+		usleep(10); 		
+
+		buff[0] = 0xd9;	//select channel 4  DAC_ADC_test to read
+		spiXfer(spi.cs_adc, buff, buff_rx, 4);
+		eq.CJ[2]=buff_rx[1];
+		eq.CJ[1]=buff_rx[2];
+		eq.CJ[0]=buff_rx[3];
+		vout = (float) eq.J / 16777215 * Vref;
+		fprintf( spi.fp, " vin=%f, vout = %0x,  %f\n",  vin, eq.J, vout);
+		usleep(20);
 
 
-loop:
-	gpioWrite(4, 0);
-	usleep(100);                                           
-	gpioWrite(4, 1); 
-	usleep(100); 
-		spiWrite(spi.cs_dac, buff, 2);
-		spiWrite(spi.cs_adc, buff, 3);
-	goto loop;
+		vin = 1.1;
+		eq.J = vin /Vref * dac_bits;
+		buff[0] = 0x38;				// send command first
+		buff[1] = eq.CJ[1];
+		buff[2] = eq.CJ[0];
+		spiWrite(spi.cs_dac, buff, 3); 
+		usleep(10);
 
+		buff[0] = 0xbe;					// Convert! (64000sps)
+		spiWrite(spi.cs_adc, buff, 1);
+		usleep(10); 		
+
+		buff[0] = 0xd9;	//select channel 4  DAC_ADC_test to read
+		spiXfer(spi.cs_adc, buff, buff_rx, 4);
+		eq.CJ[2]=buff_rx[1];
+		eq.CJ[1]=buff_rx[2];
+		eq.CJ[0]=buff_rx[3];
+		vout = (float) eq.J / 16777215 * Vref;
+		fprintf( spi.fp, " vin=%f, vout = %0x,  %f\n",  vin, eq.J, vout);
+		usleep(20);
+
+		goto LOOP;
+CLOSE:
 	
 	return 0;
 }
 
 
 ///////////////////////////////////////////
+void* CE_test( )
+{
+	
+	char buff[4], buff_rx[4];	
+	
+	buff[0] = 0x55;
+	buff_rx[0] = 0x99; 
+LOOP:
+	if (spi.thread_status == kill ) { goto CLOSE; }
+	spiWrite(spi.cs_dac, buff, 1);
+	usleep(20);
+	spiXfer(spi.cs_adc, buff, buff_rx, 1);
+	usleep(20);
+	spiWrite(spi.cs_pll, buff, 1);
+	usleep(20);
+	spiWrite(spi.cs_att, buff, 1);
+	usleep(20);
+	goto LOOP;
+
+CLOSE:
+	
+	return 0;
+}
+
+
+///////////////////////////////////////////
+
+
+
 void* set_att( )
 {
 
