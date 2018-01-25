@@ -50,13 +50,6 @@
 #define step        2
 #define run			3
 
-// byte order must be reversed when sending out via SPI port
-// 
-// use this equivalence union to access the integer as bytes
-//   J    0x11223344	integer & byte alignment
-//  CJ[]     3 2 1 0	
-union equivs { unsigned int J; unsigned char CJ[4]; };
-union equivs eq;
 
 typedef struct vac_gage {
 	int thread_status;
@@ -283,7 +276,7 @@ void *spi_thread( void *ss )
 	fp = fopen( "spi.dat", "w+" );
 	s->fp = fp;
 	count=0;
-	s->cmd='c';  // g(pio), t(atten), p(ll), d(ac), a(dc), (s)pi (c)hip enable test
+	s->cmd='a';  // g(pio), t(atten), p(ll), d(ac), a(dc), (s)pi (c)hip enable test
 	
 	if(s->cmd=='s')
 	{
@@ -417,7 +410,7 @@ CLOSE:							// turn everything off before exit
 ///////////////////////////////////////////
 void* d_a_test( )
 {
-	
+	union equivs { unsigned int J; unsigned char CJ[4]; } eq;
 	char buff[4];
 	float vin, vout;
 	
@@ -432,21 +425,22 @@ LOOP:
 
 		vin = 0.1;
 		eq.J = vin /Vref * dac_bits;
-		buff[0] = 0x38;				// send command first
+		buff[0] = 0x38;					// write through to DAC3
 		buff[1] = eq.CJ[1];
 		buff[2] = eq.CJ[0];
 		spiWrite(spi.cs_dac, buff, 3); 
 		usleep(10);
 
-		buff[0] = 0xbe;					// Convert! (64000sps)
+		buff[0] = 0xba;					// Convert! (2000sps)
 		spiWrite(spi.cs_adc, buff, 1);
 		usleep(10); 		
 
 		buff[0] = 0xd9;	//select channel 4  DAC_ADC_test to read
 		spiXfer(spi.cs_adc, buff, buff_rx, 4);
-		eq.CJ[2]=buff_rx[1];
-		eq.CJ[1]=buff_rx[2];
-		eq.CJ[0]=buff_rx[3];
+			eq.CJ[0]=0x00;
+			eq.CJ[1]=buff_rx[1];
+			eq.CJ[2]=buff_rx[2];
+			eq.CJ[3]=buff_rx[3];
 		vout = (float) eq.J / 16777215 * Vref;
 		fprintf( spi.fp, " vin=%f, vout = %0x,  %f\n",  vin, eq.J, vout);
 		usleep(20);
@@ -454,7 +448,7 @@ LOOP:
 
 		vin = 1.1;
 		eq.J = vin /Vref * dac_bits;
-		buff[0] = 0x38;				// send command first
+		buff[0] = 0x38;				// write through to DAC3
 		buff[1] = eq.CJ[1];
 		buff[2] = eq.CJ[0];
 		spiWrite(spi.cs_dac, buff, 3); 
@@ -466,9 +460,10 @@ LOOP:
 
 		buff[0] = 0xd9;	//select channel 4  DAC_ADC_test to read
 		spiXfer(spi.cs_adc, buff, buff_rx, 4);
-		eq.CJ[2]=buff_rx[1];
-		eq.CJ[1]=buff_rx[2];
-		eq.CJ[0]=buff_rx[3];
+			eq.CJ[0]=0x00;
+			eq.CJ[1]=buff_rx[1];
+			eq.CJ[2]=buff_rx[2];
+			eq.CJ[3]=buff_rx[3];
 		vout = (float) eq.J / 16777215 * Vref;
 		fprintf( spi.fp, " vin=%f, vout = %0x,  %f\n",  vin, eq.J, vout);
 		usleep(20);
@@ -512,7 +507,7 @@ CLOSE:
 
 void* set_att( )
 {
-
+	union equivs { unsigned int J; unsigned char CJ[4]; } eq;
 	char buff[4];
 
 	
@@ -532,6 +527,7 @@ END:
 ///////////////////////////////////////////
 void* set_pll( )
 {
+	union equivs { unsigned int J; unsigned char CJ[4]; } eq;
 	char buff[4];
 	unsigned int N;
 	int n;
@@ -604,8 +600,9 @@ END:
 ///////////////////////////////////////////
 void* read_adc( )
 {
-		
-	char buff[4], buff_rx[4];
+
+	union rx { unsigned int RX; char buff_rx[4]; } rx1;
+	char buff[4];
 	int n;
 
 	if( spi.adc_flag == idle ) {
@@ -619,37 +616,19 @@ void* read_adc( )
 		spi.adc_reg[3] = 0xd7;
 		spi.adc_reg[4] = 0xd9;
 		spi.adc_reg[5] = 0xdb;
-/*			
-		buff[0] = 0x00;		// DELAY
-		buff[1] = 0x00;
-			memcpy(buff,&ADC_init,2);
-			spiWrite(spi.cs_adc, buff, 2);
- 
-		buff[0] = 0xc6;		// CTRL3 
-			spiWrite(spi.cs_adc, buff, 1);
-
-		buff[0] = 0xc6;		// CHMAP0 
-			spiWrite(spi.cs_adc, buff, 1);
-
-		buff[0] = 0xcc;		// CHMAP1 
-			spiWrite(spi.cs_adc, buff, 1);
-
-		buff[0] = 0xc4;		// CTRL2 
-			spiWrite(spi.cs_adc, buff, 1);
-*/
 
 
 /*SEQ = D0					0    8
  * mux=0 					000
- * mode=1					   0 1
+ * mode=2					   0 1
  * gpodren=0				      0
  * mdren=0					       0
  * rdyben=0					        0
 */
 		buff[0] = 0xd0;		//SEQ  command
 		buff[1] = 0x08;		//SEQ  data
-			spiWrite(spi.cs_adc, buff, 2);
-			usleep(100); 
+		spiWrite(spi.cs_adc, buff, 2);
+		usleep(100); 
 			
 /*CTL1 =C2                   0    E
  * perform self calibration	00
@@ -661,53 +640,40 @@ void* read_adc( )
 */ 
 		buff[0] = 0xc2;		// CTRL1
 		buff[1] = 0x0e;		// CTRL1 data
-			spiWrite(spi.cs_adc, buff, 2);
-			usleep(100); 
+		spiWrite(spi.cs_adc, buff, 2);
+		usleep(100); 
 			
 /*Convert					B    E
  * convert code				1011
  * sample rate=64000sps		    1110
 */
-		buff[0] = 0xbe;		// Convert at 64000sps
-			spiWrite(spi.cs_adc, buff, 1);
-			usleep(100); 			
+		buff[0] = 0xbe;		// Convert at 6400sps
+		spiWrite(spi.cs_adc, buff, 1);
+		usleep(2000); 			
 
 		goto END;
 	}
 
-// ADC:	
+
 	if( spi.adc_flag == step ) {
-		buff[0] = 0xbe;					// Convert! (64000sps)
+		buff[0] = 0xbe;					// Convert! (6400sps)
 		spiWrite(spi.cs_adc, buff, 1);
 		usleep(100); 		
 
 		for ( n=0; n<6; n++) {
 			buff[0] = spi.adc_reg[n];	//select a channel to read
-			spiXfer(spi.cs_adc, buff, buff_rx, 4);
-			eq.CJ[2]=buff_rx[1];
-			eq.CJ[1]=buff_rx[2];
-			eq.CJ[0]=buff_rx[3];
-			spi.ADC[n] = (float) eq.J / 16777215 * Vref;
-			fprintf( spi.fp, " acd %d, = %0x,  %f\n",  n, eq.J, spi.ADC[n]);
+			buff[1] = 0x00;
+			buff[2] = 0x00;
+			buff[3] = 0x00;
+			spiXfer(spi.cs_adc, buff, rx1.buff_rx, 4);
+			rx1.buff_rx[0]=0x00;;
+			spi.ADC[n] = (float) rx1.RX / 16777215 * Vref;
+			fprintf( spi.fp, " acd %d, = %0x,  %f\n",  n, rx1.RX, spi.ADC[n]);
 			usleep(100);
 		}
-
-				
-/*		for ( n=0; n<6; n++) {
-			buff[0] = spi.adc_reg[n];	//select a channel to read
-			spiWrite(spi.cs_adc, buff, 4);
-			eq.CJ[2]=buff[1];
-			eq.CJ[1]=buff[2];
-			eq.CJ[0]=buff[3];
-			spi.ADC[n] = (float) eq.J / 16777215 * Vref;
-			fprintf( spi.fp, " acd %d, = %0x,  %f\n",  n, eq.J, spi.ADC[n]);
-			usleep(100);
-		}
-*/
 
 		goto END;
 	}	
-//	goto ADC;
 
 
 END:
@@ -718,6 +684,11 @@ END:
 ///////////////////////////////////////////
 void* write_dac( )
 {
+// 
+// use this equivalence union to access the integer as bytes
+//   J    0x11223344	integer & byte alignment
+//  CJ[]     3 2 1 0	
+	union equivs { unsigned int J; unsigned char CJ[4]; } eq;
 	char buff[3];
 	unsigned short I[4];
 	int n;
@@ -965,7 +936,7 @@ int help_menu()
 	printf( "h = THIS help menu\n" );	
 
 	
-	sleep(8);
+	sleep(4);
 	return 0 ;
 }
 
