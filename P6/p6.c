@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <unistd.h>
 #include <termios.h>
 #include <poll.h>
 #include <string.h>
@@ -49,6 +48,10 @@
 #define init        1
 #define step        2
 #define run			3
+#define device_status		4
+#define init_kim    5
+#define init_bob    6
+
 
 
 typedef struct vac_gage {
@@ -84,6 +87,7 @@ typedef struct spi_control {
 	unsigned cs_adc;
 	int adc_flag;
 	unsigned char adc_reg[6];
+	unsigned char adc_status[4];
 	float ADC[6];			// raw values from MAX11254
 	float ammeter;			// AIN0P
 	float power_fwrd;		// AIN1P
@@ -416,33 +420,15 @@ void* d_a_test( )
 	
 	spi.dac_flag = init;
 	write_dac();
-	spi.adc_flag = init;
-//	read_adc();	
-/*SEQ = D0					0    8
- * mux=0 					000
- * mode=2					   0 1
- * gpodren=0				      0
- * mdren=0					       0
- * rdyben=0					        0
-*/
-		buff[0] = 0xd0;		//SEQ  command
-		buff[1] = 0x00;		// mode 1!
-		spiWrite(spi.cs_adc, buff, 2);
-		usleep(100); 
-/*CTL1 =C2                   0    E
- * perform self calibration	00
- * powerdown =NOP			  00
- * unipolar					    1
- * format = offset binary 	     1
- * Scycle = single cycle		  1
- * Contsc = single cycle           0
-*/ 
-		buff[0] = 0xc2;		// CTRL1
-		buff[1] = 0x0e;		// CTRL1 data
-		spiWrite(spi.cs_adc, buff, 2);
+	
+	spi.adc_flag = device_status;
+	read_adc();
 
+	spi.adc_flag = init_kim;
+	read_adc();
 
-
+	spi.adc_flag = device_status;
+	read_adc();
 
 
 	usleep(100); 		
@@ -643,7 +629,7 @@ void* read_adc( )
 		goto END;
 	}
 	
-	if( spi.adc_flag == init ) {
+	if( spi.adc_flag == init_kim ) {
 		spi.adc_reg[0] = 0xd1;
 		spi.adc_reg[1] = 0xd3;
 		spi.adc_reg[2] = 0xd5;
@@ -652,31 +638,126 @@ void* read_adc( )
 		spi.adc_reg[5] = 0xdb;
 
 
-/*SEQ = D0					0    8
- * mux=0 					000
- * mode=2					   0 1
+/*SEQ = D0					4    0
+ * mux=4 					010
+ * mode=1					   0 0
  * gpodren=0				      0
  * mdren=0					       0
  * rdyben=0					        0
 */
 		buff[0] = 0xd0;		//SEQ  command
-		buff[1] = 0x08;		//SEQ  data
+		buff[1] = 0x40;		//SEQ  data
 		spiWrite(spi.cs_adc, buff, 2);
 		usleep(100); 
 			
-/*CTL1 =C2                   0    E
+/*CTL1 =C2                   1    D
  * perform self calibration	00
- * powerdown =NOP			  00
+ * powerdown =STANDBY		  01
  * unipolar					    1
  * format = offset binary 	     1
- * Scycle = single cycle		  1
- * Contsc = single cycle           0
+ * Scycle = single cycle		  0
+ * Contsc = single cycle           1
 */ 
 		buff[0] = 0xc2;		// CTRL1
-		buff[1] = 0x0e;		// CTRL1 data
+		buff[1] = 0x1d;		// CTRL1 data
+		spiWrite(spi.cs_adc, buff, 2);
+		usleep(100); 
+
+/* CHMAP0	
+ * just use example
+ 
+ 
+ */
+		buff[0] = 0xce;		// CHMAP0
+		buff[1] = 0x0b;		// 
+		buff[2] = 0x27;
+		buff[3] = 0x4f;
+		spiWrite(spi.cs_adc, buff, 4);
+		usleep(100); 
+
+/* CHMAP1	
+ * just use example
+ 
+ 
+ */
+		buff[0] = 0xcc;		// CHMAP0
+		buff[1] = 0x0b;		// 
+		buff[2] = 0x27;
+		buff[3] = 0x4f;
+		spiWrite(spi.cs_adc, buff, 4);
+		usleep(100); 
+
+			
+/*Convert					B    E
+ * convert code				1011
+ * sample rate=64000sps		    1110
+*/
+		buff[0] = 0xbe;		// Convert at 6400sps
+		spiWrite(spi.cs_adc, buff, 1);
+		usleep(2000); 			
+
+		goto END;
+	}
+
+
+	if( spi.adc_flag == init_bob ) {
+		spi.adc_reg[0] = 0xd1;
+		spi.adc_reg[1] = 0xd3;
+		spi.adc_reg[2] = 0xd5;
+		spi.adc_reg[3] = 0xd7;
+		spi.adc_reg[4] = 0xd9;
+		spi.adc_reg[5] = 0xdb;
+
+
+/*SEQ = D0					1    2
+ * mux=0 					000
+ * mode=2					   1 0
+ * gpodren=0				      0
+ * mdren=1					       1
+ * rdyben=0					        0
+*/
+		buff[0] = 0xd0;		//SEQ  command
+		buff[1] = 0x12;		//SEQ  data
 		spiWrite(spi.cs_adc, buff, 2);
 		usleep(100); 
 			
+/*CTL1 =C2                   1    D
+ * perform self calibration	00
+ * powerdown =STANDBY		  01
+ * unipolar					    1
+ * format = offset binary 	     1
+ * Scycle = single cycle		  0
+ * Contsc = single cycle           1
+*/ 
+		buff[0] = 0xc2;		// CTRL1
+		buff[1] = 0x1d;		// CTRL1 data
+		spiWrite(spi.cs_adc, buff, 2);
+		usleep(100); 
+
+/* CHMAP0	
+ * just use example
+ 
+ 
+ */
+		buff[0] = 0xce;		// CHMAP0
+		buff[1] = 0x0b;		// 
+		buff[2] = 0x27;
+		buff[3] = 0x4f;
+		spiWrite(spi.cs_adc, buff, 4);
+		usleep(100); 
+
+/* CHMAP1	
+ * 
+		buff[0] = 0xcc;		// CHMAP1
+		buff[1] = 0x0b;		// 
+		buff[2] = 0x27;
+		buff[3] = 0x4f;
+		spiWrite(spi.cs_adc, buff, 4);
+		usleep(100); 
+ */
+
+
+		
 /*Convert					B    E
  * convert code				1011
  * sample rate=64000sps		    1110
@@ -704,7 +785,7 @@ void* read_adc( )
 			eq.CJ[1] = buff_rx[2];
 			eq.CJ[2] = buff_rx[1];
 			eq.CJ[3] = buff_rx[0];
-//			fprintf(spi.fp, " %0x, %0x, %0x, %0x/n",eq.CJ[0],eq.CJ[1],eq.CJ[2],eq.CJ[3]); 
+//			fprintf(spi.fp, " %0x, %0x, %0x, %0x\n",eq.CJ[0],eq.CJ[1],eq.CJ[2],eq.CJ[3]); 
 			spi.ADC[n] = (float) eq.J / 16777215 * Vref;
 //			fprintf( spi.fp, " acd %d, = %0x,  %.4f\n",  n, eq.J, spi.ADC[n]);
 			usleep(100);
@@ -716,6 +797,19 @@ void* read_adc( )
 		goto END;
 	}	
 
+	if( spi.adc_flag == device_status ) {
+
+		buff[0] = 0xc1;					//read status reg.
+		buff[1] = 0x00;
+		buff[2] = 0x00;
+		buff[3] = 0x00;
+		spiXfer(spi.cs_adc, buff, buff_rx, 4);
+		eq.CJ[0] = buff_rx[0];
+		eq.CJ[1] = buff_rx[1];
+		eq.CJ[2] = buff_rx[2];
+		eq.CJ[3] = buff_rx[3];
+		fprintf(spi.fp, "status= %x, %0x, %x, %x\n",eq.CJ[0],eq.CJ[1],eq.CJ[2],eq.CJ[3]); 
+	}	
 
 END:
 	return 0;
