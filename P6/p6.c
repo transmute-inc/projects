@@ -277,7 +277,7 @@ void *spi_thread( void *ss )
 	fp = fopen( "spi.dat", "w+" );
 	s->fp = fp;
 	count=0;
-	s->cmd='a';  // g(pio), t(atten), p(ll), d(ac), a(dc), (s)pi (c)hip enable test
+	s->cmd='s';  // g(pio), t(atten), p(ll), d(ac), a(dc), (s)pi (c)hip enable test
 	
 	if(s->cmd=='s')
 	{
@@ -467,7 +467,7 @@ LOOP:
 
 		read_adc( dev_status );
 
-		goto LOOP;
+//		goto LOOP;
 CLOSE:
 	
 	return 0;
@@ -615,40 +615,55 @@ void* read_adc( int cmd_flag )
 		spi.adc_reg[3] = 0xd7;
 		spi.adc_reg[4] = 0xd9;
 		spi.adc_reg[5] = 0xdb;
-/*SEQ = D0					4    2
- * mux=4 					010
- * mode=1					   0 0
- * gpodren=0				      0
- * mdren=1					       1
- * rdyben=0					        0
-*/
-		buff[0] = 0xd0;		//SEQ  command
-		buff[1] = 0x42;		//SEQ  data
-		spiWrite(spi.cs_adc, buff, 2);
-		usleep(100); 
-
-/*Delay = CA				00    00
- * MUX(7:0)					00
- * GPO(7:0)						  00
-*/
-		buff[0] = 0xca;		//Delay  command
-		buff[1] = 0x00;		//mux    data
-		buff[2] = 0x00;		//gpo    data
-		spiWrite(spi.cs_adc, buff, 3);
-		usleep(100); 
-			
-/*CTL1 =C2                   1    D
+// SOFTWARE RESET (p.28)
+/*CTL1 =C2                   3    C
  * perform self calibration	00
- * powerdown =STANDBY		  01
+ * powerdown =RESET  		  11
  * unipolar					    1
  * format = offset binary 	     1
  * Scycle = single cycle		  0
- * Contsc = single cycle           1
+ * Contsc = single cycle           0
 */ 
 		buff[0] = 0xc2;		// CTRL1
-		buff[1] = 0x1d;		// CTRL1 data
+		buff[1] = 0x3c;		// CTRL1 data
 		spiWrite(spi.cs_adc, buff, 2);
-		usleep(100); 
+		usleep(200000);
+		 
+		buff[0] = 0x9e;		// Conversion calibration 
+		spiWrite(spi.cs_adc, buff, 1);
+		usleep(200000); 
+
+
+
+/*SEQ = D0					8    0
+ * mux=ch 4					100
+ * mode=seq 1				   0 0
+ * gpodren=0				      0
+ * mdren=0					       0
+ * rdyben=0					        0
+*/
+		buff[0] = 0xd0;		//SEQ  command
+		buff[1] = 0x80;		//SEQ  data
+		spiWrite(spi.cs_adc, buff, 2);
+		usleep(1000); 
+
+//SELF CALIBRATION  (p.33)		
+/*CTL1 =C2                   2    C
+ * perform self calibration	00
+ * powerdown =STANDBY		  10
+ * unipolar					    1
+ * format = offset binary 	     1
+ * Scycle = single cycle		  0
+ * Contsc = single cycle           0
+*/ 
+		buff[0] = 0xc2;		// CTRL1
+		buff[1] = 0x2c;		// CTRL1 data
+		spiWrite(spi.cs_adc, buff, 2);
+		usleep(200000); 
+		
+		buff[0] = 0xae;		// Conversion calibration
+		spiWrite(spi.cs_adc, buff, 1);
+		usleep(200000); 
 
 			
 /*Convert					B    E
