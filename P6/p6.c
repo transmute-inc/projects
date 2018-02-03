@@ -28,7 +28,7 @@
 #define dac_bits	65535
 #define adc_bits	16777215
 
-#define SPI_SPEED	100000	// !! Start 0 
+#define SPI_SPEED	8000000	// !! Start 0 
 // MAX2871 PLL 20MHz
 // MAX5134 DAC 30MHz
 // MAX11254 ADC 8MHz
@@ -407,7 +407,7 @@ void* d_a_test( )
 	read_adc( dev_status );
 
 
-	usleep(1000); 		
+//	usleep(1000); 		
 
 LOOP:
 		if (spi.thread_status == kill ) { goto CLOSE; }
@@ -418,11 +418,11 @@ LOOP:
 		buff[1] = eq.CJ[1];
 		buff[2] = eq.CJ[0];
 		spiWrite(spi.cs_dac, buff, 3); 
-		usleep(10);
+//		usleep(10);
 
 		buff[0] = 0xbe;					// Convert! (6400sps)
 		spiWrite(spi.cs_adc, buff, 1);
-		usleep(10); 		
+		usleep(4); 		
 
 
 		buff[0] = spi.adc_reg[4];		//select channel 4  DAC_ADC_test
@@ -436,7 +436,7 @@ LOOP:
 		eq.CJ[3] = buff_rx[0];
 		vout = (float) eq.J / adc_bits * Vref;
 		fprintf( spi.fp, " vin=%f, vout = %.4f\n",  vin, vout);
-		usleep(200);
+		usleep(1);
 
 		read_adc( dev_status );
 
@@ -447,11 +447,11 @@ LOOP:
 		buff[1] = eq.CJ[1];
 		buff[2] = eq.CJ[0];
 		spiWrite(spi.cs_dac, buff, 3); 
-		usleep(10);
+//		usleep(5);
 
 		buff[0] = 0xbe;					// Convert! (64000sps)
 		spiWrite(spi.cs_adc, buff, 1);
-		usleep(10); 		
+		usleep(4); 		
 
 		buff[0] = spi.adc_reg[4];		//select channel 4  DAC_ADC_test
 		buff[1] = 0x00;
@@ -464,7 +464,7 @@ LOOP:
 		eq.CJ[3] = buff_rx[0];
 		vout = (float) eq.J / 16777215 * Vref;
 		fprintf( spi.fp, " vin=%f, vout = %.4f\n",  vin, vout);
-		usleep(200);
+		usleep(1);
 
 		read_adc( dev_status );
 
@@ -752,7 +752,7 @@ void* read_adc( int cmd_flag )
 	if( cmd_flag == step ) {
 		buff[0] = 0xbe;					// Convert! (6400sps)
 		spiWrite(spi.cs_adc, buff, 1);
-		usleep(100); 		
+		usleep(5); 		
 
 		for ( n=0; n<6; n++) {
 			buff[0] = spi.adc_reg[n];	//select a channel to read
@@ -767,7 +767,7 @@ void* read_adc( int cmd_flag )
 //			fprintf(spi.fp, " %0x, %0x, %0x, %0x\n",eq.CJ[0],eq.CJ[1],eq.CJ[2],eq.CJ[3]); 
 			spi.ADC[n] = (float) eq.J / adc_bits * Vref;
 //			fprintf( spi.fp, " acd %d, = %0x,  %.4f\n",  n, eq.J, spi.ADC[n]);
-			usleep(1000);
+			usleep(5);
 		}
 		fprintf( spi.fp, "ADC0-5= %.4f, %.4f, %.4f, %.4f, %.4f, %.4f\n",
 		spi.ADC[0],spi.ADC[1],spi.ADC[2],spi.ADC[3],spi.ADC[4],spi.ADC[5]);
