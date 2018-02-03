@@ -345,7 +345,7 @@ DAC:
 	{
 		write_dac( init );
 		read_adc( dev_status );
-		read_adc( init_mode2 );	
+		read_adc( init_mode1 );	
 		read_adc( dev_status );
 				
 ADC:	//write dac_test waveform to adc
@@ -424,7 +424,7 @@ LOOP:
 		usleep(10); 		
 
 
-		buff[0] = 0xd9;					//select channel 4  DAC_ADC_test
+		buff[0] = 0xe5;					//select channel 4  DAC_ADC_test
 		buff[1] = 0x00;
 		buff[2] = 0x00;
 		buff[3] = 0x00;
@@ -452,7 +452,7 @@ LOOP:
 		spiWrite(spi.cs_adc, buff, 1);
 		usleep(10); 		
 
-		buff[0] = 0xd9;					//select channel 4  DAC_ADC_test
+		buff[0] = 0xe5;					//select channel 4  DAC_ADC_test
 		buff[1] = 0x00;
 		buff[2] = 0x00;
 		buff[3] = 0x00;
@@ -467,7 +467,7 @@ LOOP:
 
 		read_adc( dev_status );
 
-//		goto LOOP;
+		goto LOOP;
 CLOSE:
 	
 	return 0;
@@ -609,12 +609,12 @@ void* read_adc( int cmd_flag )
 	}
 	
 	if( cmd_flag == init_mode1 ) {
-		spi.adc_reg[0] = 0xd1;
-		spi.adc_reg[1] = 0xd3;
-		spi.adc_reg[2] = 0xd5;
-		spi.adc_reg[3] = 0xd7;
-		spi.adc_reg[4] = 0xd9;
-		spi.adc_reg[5] = 0xdb;
+		spi.adc_reg[0] = 0xdd;
+		spi.adc_reg[1] = 0xdf;
+		spi.adc_reg[2] = 0xe1;
+		spi.adc_reg[3] = 0xe3;
+		spi.adc_reg[4] = 0xe5;
+		spi.adc_reg[5] = 0xe7;
 // SOFTWARE RESET (p.28)
 /*CTL1 =C2                   3    C
  * perform self calibration	00
@@ -632,8 +632,6 @@ void* read_adc( int cmd_flag )
 		buff[0] = 0x9e;		// Conversion calibration 
 		spiWrite(spi.cs_adc, buff, 1);
 		usleep(200000); 
-
-
 
 /*SEQ = D0					8    0
  * mux=ch 4					100
@@ -679,12 +677,12 @@ void* read_adc( int cmd_flag )
 
 
 	if( cmd_flag == init_mode2 ) {
-		spi.adc_reg[0] = 0xd1;
-		spi.adc_reg[1] = 0xd3;
-		spi.adc_reg[2] = 0xd5;
-		spi.adc_reg[3] = 0xd7;
-		spi.adc_reg[4] = 0xd9;
-		spi.adc_reg[5] = 0xdb;
+		spi.adc_reg[0] = 0xdd;
+		spi.adc_reg[1] = 0xdf;
+		spi.adc_reg[2] = 0xe1;
+		spi.adc_reg[3] = 0xe3;
+		spi.adc_reg[4] = 0xe5;
+		spi.adc_reg[5] = 0xe7;
 
 
 /*SEQ = D0					1    2
