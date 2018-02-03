@@ -424,7 +424,7 @@ LOOP:
 		usleep(10); 		
 
 
-		buff[0] = 0xe5;					//select channel 4  DAC_ADC_test
+		buff[0] = spi.adc_reg[4];		//select channel 4  DAC_ADC_test
 		buff[1] = 0x00;
 		buff[2] = 0x00;
 		buff[3] = 0x00;
@@ -452,7 +452,7 @@ LOOP:
 		spiWrite(spi.cs_adc, buff, 1);
 		usleep(10); 		
 
-		buff[0] = 0xe5;					//select channel 4  DAC_ADC_test
+		buff[0] = spi.adc_reg[4];		//select channel 4  DAC_ADC_test
 		buff[1] = 0x00;
 		buff[2] = 0x00;
 		buff[3] = 0x00;
@@ -627,7 +627,7 @@ void* read_adc( int cmd_flag )
 		buff[0] = 0xc2;		// CTRL1
 		buff[1] = 0x3c;		// CTRL1 data
 		spiWrite(spi.cs_adc, buff, 2);
-		usleep(200000);
+//		usleep(200000);
 		 
 		buff[0] = 0x9e;		// Conversion calibration 
 		spiWrite(spi.cs_adc, buff, 1);
@@ -657,7 +657,7 @@ void* read_adc( int cmd_flag )
 		buff[0] = 0xc2;		// CTRL1
 		buff[1] = 0x2c;		// CTRL1 data
 		spiWrite(spi.cs_adc, buff, 2);
-		usleep(200000); 
+//		usleep(200000); 
 		
 		buff[0] = 0xae;		// Conversion calibration
 		spiWrite(spi.cs_adc, buff, 1);
@@ -670,7 +670,7 @@ void* read_adc( int cmd_flag )
 */
 		buff[0] = 0xbe;		// Convert at 6400sps
 		spiWrite(spi.cs_adc, buff, 1);
-		usleep(2000); 			
+//		usleep(2000); 			
 
 		goto END;
 	}
