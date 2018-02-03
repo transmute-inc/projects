@@ -277,7 +277,7 @@ void *spi_thread( void *ss )
 	fp = fopen( "spi.dat", "w+" );
 	s->fp = fp;
 	count=0;
-	s->cmd='s';  // g(pio), t(atten), p(ll), d(ac), a(dc), (s)pi (c)hip enable test
+	s->cmd='a';  // g(pio), t(atten), p(ll), d(ac), a(dc), (s)pi (c)hip enable test
 	
 	if(s->cmd=='s')
 	{
@@ -347,6 +347,7 @@ DAC:
 		read_adc( dev_status );
 		read_adc( init_mode1 );	
 		read_adc( dev_status );
+		count = 0;
 				
 ADC:	//write dac_test waveform to adc
 		if (s->thread_status == kill ) { goto CLOSE; }
@@ -355,7 +356,7 @@ ADC:	//write dac_test waveform to adc
 		write_dac( step );
 		usleep(5);		
 		read_adc( step );
-		fprintf( fp, " S %d,  0.4  TST=%.4f\n", count, spi.adc_test);	
+		fprintf( fp, " S %d,  0.4  TST=%.4f\n", count, spi.ADC[4]);	
 		read_adc( dev_status );
 		usleep(500);
 		
@@ -363,7 +364,7 @@ ADC:	//write dac_test waveform to adc
 		write_dac( step );
 		usleep(5);		
 		read_adc( step );
-		fprintf( fp, " S %d, 1.4  TST=%.4f\n", count, spi.adc_test);	
+		fprintf( fp, " S %d, 1.4  TST=%.4f\n", count, spi.ADC[4]);	
 		read_adc( dev_status );
 		usleep(500);		
 		
