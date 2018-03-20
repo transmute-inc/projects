@@ -24,15 +24,12 @@
 */
 
 
+
 #define Vref		2.44	// vref is common for adc & dac
 #define dac_bits	65535
 #define adc_bits	16777215
 
-#define SPI_SPEED	2000000	// !! Start 0 
-// MAX2871 PLL 20MHz
-// MAX5134 DAC 30MHz
-// MAX11254 ADC 8MHz
-// PE43711 ATT 10MHz
+
 
 #define RF_en		6		// BCM GPIO
 #define H2_in		4		// RLY_1 moved from p1-11 -> p1-7
@@ -127,7 +124,12 @@ int   help_menu( );
 
 unsigned spid_adc, spid_dac, spid_att1, spid_T26, spid_pll;
 unsigned ser_tty, serBaud=9600, serFlags=0;
-unsigned spiBaud=100000;
+unsigned spiBaud=8000000;
+// MAX2871 PLL 20MHz
+// MAX5134 DAC 30MHz
+// MAX11254 ADC 8MHz
+// PE43711 ATT 10MHz
+
 int x, rc1, rc2, count=0;
 unsigned char c;
 char buff[4], buff_rx[4];
@@ -144,11 +146,13 @@ int main(void)
  	gpioSetMode(H2_out, PI_OUTPUT); 
  	gpioSetMode(Vac, PI_OUTPUT); 
  	gpioSetMode(Vac_pump, PI_OUTPUT);
+  	gpioSetMode(RF_en, PI_OUTPUT);
+
 
 	spi.cs_adc = spiOpen(0, spiBaud, 0);	//CE0   08   24	 T11	
 	spi.cs_dac = spiOpen(1, spiBaud, 0);	//CE1   07   26  T12
-	spi.cs_pll = spiOpen(0, spiBaud, 256);	//ce0   18   12	(p1-36->p1-11) 
-	spi.cs_att = spiOpen(1, spiBaud, 256);	//ce1   17   11	(p1-37->p1-12)
+	spi.cs_att = spiOpen(0, spiBaud, 256);	//ce0   18   12	(p1-37->p1-12) 
+	spi.cs_pll = spiOpen(1, spiBaud, 256);	//ce1   17   11	(p1-36->p1-11)
 
 
     pthread_t *thread_s, *thread_v;		
@@ -281,7 +285,7 @@ void *spi_thread( void *ss )
 	
 	
 // g(pio), t(atten), p(ll), d(ac), a(dc), (s)pi (c)hip enable (b)ob
-	spi.cmd='a';  
+	spi.cmd='p';  
 	
 	if(spi.cmd=='s')
 	{
@@ -291,6 +295,33 @@ void *spi_thread( void *ss )
 	{
 		d_a_bob();
 	} 
+	else if(spi.cmd=='a')		// use DAC to debug ADC
+	{
+		write_dac( init );
+		read_adc( init_mode2 );	
+		read_adc( dev_status );
+		count = 0;
+				
+ADC:	//write dac_test waveform to adc
+		if (spi.thread_status == kill ) { goto CLOSE; }
+		count = count + 1;
+		spi.dac_test = .4;
+		write_dac( step );			
+		
+		fprintf( fp, " %d, vin=%.4f  ", count, spi.dac_test);	
+		read_adc( step );
+		
+		spi.dac_test = 1.4;
+		write_dac( step );			
+		
+		fprintf( fp, " %d, vin=%.4f  ", count, spi.dac_test);	
+		read_adc( step );
+//		fprintf( fp, " S %d, AM=%.4f, FP=%.4f, RP=%.4f, SP=%.4f, TST=%.4f\n",  
+//		count, spi.ADC[ammeter],spi.ADC[forward],spi.ADC[reflected],
+//		spi.ADC[sniffer],spi.ADC[adc_test]);
+
+		goto ADC;
+	}
 	else if(spi.cmd=='c')
 	{
 		CE_test();
@@ -319,37 +350,45 @@ GPIO:
 		spi.attenuation = -16;
 		set_att( init );
 	} 
+	
+	
 	else if(spi.cmd=='p')
-	{
-		
+	{	
 	
-write_dac( init );				//write .5v to dac_adc_test
-	eq.J = 0.5 /Vref * dac_bits;	//just to insure adc is working
-	buff[0] = 0x38;
-	buff[1] = eq.CJ[1];
-	buff[2] = eq.CJ[0];
-	spiWrite(spi.cs_dac, buff, 3);
+		write_dac( init );				//write .5v to dac_adc_test
+		eq.J = 0.5 /Vref * dac_bits;	//just to insure adc is working
+		buff[0] = 0x38;
+		buff[1] = eq.CJ[1];
+		buff[2] = eq.CJ[0];
+		spiWrite(spi.cs_dac, buff, 3);
  			
-	spi.frequency = 100;				//100MHz, maybe...
-	set_pll( init );
-	gpioWrite (RF_en, 1) ;	
+		spi.frequency = 100;				//100MHz, maybe...
+		set_pll( init );
 	
-	spi.attenuation = -16;
-	set_att( init );
+		spi.attenuation = -16;
+		set_att( init );
 	
-	read_adc( init_mode1 );
+		read_adc( init_mode1 );
 
-//PLL:
-	if (spi.thread_status == kill ) { goto CLOSE; }
-	set_pll( step );	
-	usleep(1000);
+PLL:
+		if (spi.thread_status == kill ) { goto CLOSE; }
+		if (spi.frequency > 10000) spi.frequency = 0;
+		spi.frequency = spi.frequency + 100;				//100KHz, maybe...
+
+		gpioWrite (RF_en, 1) ;	
+		set_pll( step );	
+		usleep(10);
 		
-	read_adc( step );
-	fprintf( fp, " freq=%d, power out = %.4f\n",
-					spi.frequency, spi.ADC[forward]);
-//	goto PLL;
+//		read_adc( step );
+//		gpioWrite (RF_en, 0) ;	
+		usleep(2);
 
+		fprintf( fp, " freq=%d, power out = %.4f\n",
+					spi.frequency, spi.ADC[forward]);
+		goto PLL;
 	}
+	
+	
 	else if(spi.cmd=='d') {
 		write_dac( init );
 DAC:
@@ -368,39 +407,6 @@ DAC:
 		write_dac( step );
 		usleep(50);	
 		goto DAC;
-	}
-	else if(spi.cmd=='a')		// use DAC to debug ADC
-	{
-		write_dac( init );
-		read_adc( init_mode2 );	
-		read_adc( dev_status );
-		count = 0;
-				
-ADC:	//write dac_test waveform to adc
-		if (spi.thread_status == kill ) { goto CLOSE; }
-		count = count + 1;
-		spi.dac_test = .4;
-		write_dac( step );
-		usleep(5);		
-		fprintf( fp, " %d, vin=%.4f  ", count, spi.dac_test);	
-		read_adc( step );
-		read_adc( dev_status );
-		usleep(500);
-		
-		spi.dac_test = 1.4;
-		write_dac( step );
-		usleep(5);		
-		fprintf( fp, " %d, vin=%.4f  ", count, spi.dac_test);	
-		read_adc( step );
-		read_adc( dev_status );
-		usleep(500);		
-		
-			
-//		fprintf( fp, " S %d, AM=%.4f, FP=%.4f, RP=%.4f, SP=%.4f, TST=%.4f\n",  
-//		count, spi.ADC[ammeter],spi.ADC[forward],spi.ADC[reflected],
-//		spi.ADC[sniffer],spi.ADC[adc_test]);
-
-		goto ADC;
 	}
 
 CLOSE:							// turn everything off before exit
@@ -499,23 +505,24 @@ CLOSE:
 ///////////////////////////////////////////
 void* d_a_bob( )
 {
-	union equivs { unsigned int J; unsigned char CJ[4]; } eq;
+//	union equivs { unsigned int J; unsigned char CJ[4]; } eq;
 	char buff[4];
-	float vin, vout;
+//	float vin, vout;
+//	int n;
 	
+//1:	
 	read_adc( dev_status );
-		
 	write_dac( init );
+		spi.adc_reg[0] = 0xdd;
+		spi.adc_reg[1] = 0xdf;
+		spi.adc_reg[2] = 0xe1;
+		spi.adc_reg[3] = 0xe3;
+		spi.adc_reg[4] = 0xe5;
+		spi.adc_reg[5] = 0xe7;
 	
 // Initialization stuff
 
-		vin = 0.45;
-		eq.J = vin /Vref * dac_bits;
-		buff[0] = 0x38;					// write through to DAC3
-		buff[1] = eq.CJ[1];
-		buff[2] = eq.CJ[0];
-		spiWrite(spi.cs_dac, buff, 3); 
-		usleep(20000);
+
 
 		buff[0] = 0xd0;		// ==> SEQ register
 		buff[1] = 0x0a;		//select seq mod 2, enable delay
@@ -528,163 +535,51 @@ void* d_a_bob( )
 		spiWrite(spi.cs_adc, buff, 2);
 		usleep(1000); 
 				
-		buff[0] = 0xce;		// CHMAP0
-		buff[1] = 0x06;		// chan 1
+		buff[0] = 0xce;		// ==> CHMAP0
+		buff[1] = 0x0e;		// chan 3
 		buff[2] = 0x0a;		// chan 2
-		buff[3] = 0x0e;		// chan 3
+		buff[3] = 0x06;		// chan 1
 		spiWrite(spi.cs_adc, buff, 4);
 		usleep(100); 
 		
-		buff[0] = 0xcd;		// CHMAP1
-		buff[1] = 0x12;		// chan 4
-		buff[2] = 0x13;		// chan 5
-		buff[3] = 0x1a;		// chan 6
+		buff[0] = 0xcc;		// ==> CHMAP1
+		buff[1] = 0x1a;		// chan 6
+		buff[2] = 0x16;		// chan 5
+		buff[3] = 0x12;		// chan 4
 		spiWrite(spi.cs_adc, buff, 4);
 		usleep(100); 
 		
-		buff[0] = 0xc2;		// CTRL1
-		buff[1] = 0x22;		// CTRL1 data
+		buff[0] = 0xc2;		// ==> CTRL1
+		buff[1] = 0x2e;		// CTRL1 data
 		spiWrite(spi.cs_adc, buff, 2);
-	
-//LOOP:
+		usleep(100); 
+		
+		read_adc( dev_status );
+
+
+LOOP:
 		if (spi.thread_status == kill ) { goto CLOSE; }
 	
-		
-		buff[0] = 0xbc;					// Convert! (64000sps)
-		spiWrite(spi.cs_adc, buff, 1);
-		usleep(20000); 		
-		
-		read_adc( dev_status );
-		
-		buff[0] = 0xdd;					//read channel 0 (0xdd) DAC_ADC_test
-		buff[1] = 0x00;
-		buff[2] = 0x00;
-		buff[3] = 0x00;
-		spiXfer(spi.cs_adc, buff, buff_rx, 4);
-		eq.CJ[0] = buff_rx[3];
-		eq.CJ[1] = buff_rx[2];
-		eq.CJ[2] = buff_rx[1];
-		eq.CJ[3] = buff_rx[0];
-		vout = (float) eq.J / adc_bits * Vref;
-		fprintf( spi.fp, " vin=Pwr_Fwrd, vout0 = %.4f\n", vout);
-		usleep(100000);
+		spi.dac_test = .5;
+		write_dac( step );
+		usleep(1000); 
+
+		read_adc( step );
+		usleep(1000); 
+
+		spi.dac_test = 1.0;
+		write_dac( step );
+
+		read_adc( step );
+																						
 		read_adc( dev_status );
 
-		usleep(10000);
-		buff[0] = 0xdf;					//read channel 1  DAC_ADC_test
-		buff[1] = 0x00;
-		buff[2] = 0x00;
-		buff[3] = 0x00;
-		spiXfer(spi.cs_adc, buff, buff_rx, 4);
-		eq.CJ[0] = buff_rx[3];
-		eq.CJ[1] = buff_rx[2];
-		eq.CJ[2] = buff_rx[1];
-		eq.CJ[3] = buff_rx[0];
-		vout = (float) eq.J / adc_bits * Vref;
-		fprintf( spi.fp, " vin=pwr_rev, vout1 = %.4f\n", vout);
-		usleep(100000);	
-		read_adc( dev_status );
-		
-		usleep(10000);
-		buff[0] = 0xe1;					//read channel 2 DAC_ADC_test
-		buff[1] = 0x00;
-		buff[2] = 0x00;
-		buff[3] = 0x00;
-		spiXfer(spi.cs_adc, buff, buff_rx, 4);
-		eq.CJ[0] = buff_rx[3];
-		eq.CJ[1] = buff_rx[2];
-		eq.CJ[2] = buff_rx[1];
-		eq.CJ[3] = buff_rx[0];
-		vout = (float) eq.J / adc_bits * Vref;
-		fprintf( spi.fp, " vin=Pwr_snif, vout2 = %.4f\n", vout);
-		usleep(100000);
-		read_adc( dev_status );
-
-
-		buff[0] = 0xba;					// Convert! (64000sps)
-		spiWrite(spi.cs_adc, buff, 1);
-		read_adc( dev_status );
-		usleep(20000); 	
-		read_adc( dev_status );
-		
-		
-		usleep(10000);
-		buff[0] = 0xe3;					//select channel 3 DAC_ADC_test
-		buff[1] = 0x00;
-		buff[2] = 0x00;
-		buff[3] = 0x00;
-		spiXfer(spi.cs_adc, buff, buff_rx, 4);
-		eq.CJ[0] = buff_rx[3];
-		eq.CJ[1] = buff_rx[2];
-		eq.CJ[2] = buff_rx[1];
-		eq.CJ[3] = buff_rx[0];
-		vout = (float) eq.J / adc_bits * Vref;
-		fprintf( spi.fp, " vin=ammeter, vout3 = %.4f\n", vout);
-		usleep(100000);
-		read_adc( dev_status );
-
-		usleep(10000);
-		buff[0] = 0xe5;					//select channel 4  DAC_ADC_test
-		buff[1] = 0x00;
-		buff[2] = 0x00;
-		buff[3] = 0x00;
-		spiXfer(spi.cs_adc, buff, buff_rx, 4);
-		eq.CJ[0] = buff_rx[3];
-		eq.CJ[1] = buff_rx[2];
-		eq.CJ[2] = buff_rx[1];
-		eq.CJ[3] = buff_rx[0];
-		vout = (float) eq.J / adc_bits * Vref;
-		fprintf( spi.fp, " vin=%f, vout4 = %.4f\n",  vin, vout);
-		usleep(100000);
-		read_adc( dev_status );
-
-		usleep(10000);
-		buff[0] = 0xe7;					//select channel 5 DAC_ADC_test
-		buff[1] = 0x00;
-		buff[2] = 0x00;
-		buff[3] = 0x00;
-		spiXfer(spi.cs_adc, buff, buff_rx, 4);
-		eq.CJ[0] = buff_rx[3];
-		eq.CJ[1] = buff_rx[2];
-		eq.CJ[2] = buff_rx[1];
-		eq.CJ[3] = buff_rx[0];
-		vout = (float) eq.J / adc_bits * Vref;
-		fprintf( spi.fp, " vin=float, vout5 = %.4f\n", vout);
-		usleep(10000);
-		read_adc( dev_status );
-
-		vin = 0.30;
-		eq.J = vin /Vref * dac_bits;
-		buff[0] = 0x38;					// write through to DAC3
-		buff[1] = eq.CJ[1];
-		buff[2] = eq.CJ[0];
-		spiWrite(spi.cs_dac, buff, 3); 
-		usleep(20000);
-
-		buff[0] = 0xbe;					// Convert! (64000sps)
-		spiWrite(spi.cs_adc, buff, 1);
-		usleep(20000); 	
-
-		buff[0] = 0xe5;					//select channel 4  DAC_ADC_test
-		buff[1] = 0x00;
-		buff[2] = 0x00;
-		buff[3] = 0x00;
-		spiXfer(spi.cs_adc, buff, buff_rx, 4);
-		eq.CJ[0] = buff_rx[3];
-		eq.CJ[1] = buff_rx[2];
-		eq.CJ[2] = buff_rx[1];
-		eq.CJ[3] = buff_rx[0];
-		vout = (float) eq.J / 16777215 * Vref;
-		fprintf( spi.fp, " vin=%f, vout4 = %.4f\n",  vin, vout);
-		usleep(10000);
-
-		read_adc( dev_status );
-
-//		goto LOOP;
+		goto LOOP;
 CLOSE:
 	
 	return 0;
 }
+
 
 
 ///////////////////////////////////////////
@@ -711,6 +606,8 @@ CLOSE:
 	
 	return 0;
 }
+
+
 
 
 ///////////////////////////////////////////
@@ -750,21 +647,36 @@ void* set_pll( int cmd_flag )
 	}
 	
 	if( cmd_flag == init ) {
-/*		N = spi.frequency/625 *2;			//  freq is frequency in KHz
-		spi.PLL[0] = 1<<31 | N<<15;
+		N = spi.frequency/625 *2;			//  freq is frequency in KHz
+/*		spi.PLL[0] = 1<<31 | N<<15;
 		spi.PLL[1] = 0x8000ce21;
 		spi.PLL[2] = 0x00040142;
 		spi.PLL[3] = 0x0000000b;
 		spi.PLL[4] = 0x6090d03c;	  
 		spi.PLL[5] = 0x00400005;
 */		
-		spi.PLL[0] = 0x00d38070;	//example output=2117.8MHz	
+/*		spi.PLL[0] = 0x00d38070;	//example output=2117.8MHz	
 		spi.PLL[1] = 0x200080c9;
 		spi.PLL[2] = 0x00004042;
 		spi.PLL[3] = 0x0000000b;
 		spi.PLL[4] = 0x609c803c;	  
 		spi.PLL[5] = 0x00400005;
-	
+*/	
+		spi.PLL[0] = 0x81400000;	//example output=100MHz	
+		spi.PLL[1] = 0x8000ce21;
+		spi.PLL[2] = 0x00008142;
+		spi.PLL[3] = 0x0000000b;
+		spi.PLL[4] = 0x60d6203c;	  
+		spi.PLL[5] = 0x00400005;
+/*
+		spi.PLL[0] = 0x81400000;	//example output=200MHz	
+		spi.PLL[1] = 0x8000ce21;
+		spi.PLL[2] = 0x00008142;
+		spi.PLL[3] = 0x0000000b;
+		spi.PLL[4] = 0x60c6403c;	  
+		spi.PLL[5] = 0x00400005;
+*/
+
 							// must be written in this order
 		for ( n=5; n>-1; n--) {
 			eq.J = spi.PLL[n];
@@ -772,8 +684,13 @@ void* set_pll( int cmd_flag )
 			buff[1] = eq.CJ[2];
 			buff[2] = eq.CJ[1];
 			buff[3] = eq.CJ[0];
-			fprintf( spi.fp, " n= %d, spi= %x  buff= %x, %x, %x, %x\n",
-		                      n, eq.J, buff[0], buff[1], buff[2], buff[3] );
+/*			buff[0] = eq.CJ[0];
+			buff[1] = eq.CJ[1];
+			buff[2] = eq.CJ[2];
+			buff[3] = eq.CJ[3];
+*/
+//			fprintf( spi.fp, " n= %d, spi= %x  buff= %x, %x, %x, %x\n",
+//		                      n, eq.J, buff[0], buff[1], buff[2], buff[3] );
 			spiWrite(spi.cs_pll, buff, 4);
 		}
 		usleep(20000);	
@@ -783,22 +700,33 @@ void* set_pll( int cmd_flag )
 			buff[1] = eq.CJ[2];
 			buff[2] = eq.CJ[1];
 			buff[3] = eq.CJ[0];
+/*			buff[0] = eq.CJ[0];
+			buff[1] = eq.CJ[1];
+			buff[2] = eq.CJ[2];
+			buff[3] = eq.CJ[3];
+*/
 			spiWrite(spi.cs_pll, buff, 4); 
 		}	
 		goto END;
 	}
 	
 	if( cmd_flag == step ) {
-		n=8;
+/*		n=8;
 		N = spi.frequency/625 *2;
 		spi.PLL[0] = 0x80000000 | N<<15;
-		eq.J = spi.PLL[0];
-		buff[0] = eq.CJ[3];
-		buff[1] = eq.CJ[2];
-		buff[2] = eq.CJ[1];
-		buff[3] = eq.CJ[0];
-		fprintf( spi.fp, " n= %d, spi= %x  buff= %x, %x, %x, %x\n",
-					n, eq.J, buff[0], buff[1], buff[2], buff[3] );
+*/
+			eq.J = spi.PLL[0];
+			buff[0] = eq.CJ[3];
+			buff[1] = eq.CJ[2];
+			buff[2] = eq.CJ[1];
+			buff[3] = eq.CJ[0];
+/*			buff[0] = eq.CJ[0];
+			buff[1] = eq.CJ[1];
+			buff[2] = eq.CJ[2];
+			buff[3] = eq.CJ[3];
+*/
+		fprintf( spi.fp, " pll = %x  buff= %x, %x, %x, %x\n",
+					eq.J, buff[0], buff[1], buff[2], buff[3] );
 		spiWrite(spi.cs_pll, buff, 4);
 	}
 
@@ -826,62 +754,36 @@ void* read_adc( int cmd_flag )
 		spi.adc_reg[3] = 0xe3;
 		spi.adc_reg[4] = 0xe5;
 		spi.adc_reg[5] = 0xe7;
-// SOFTWARE RESET (p.28)
-/*CTL1 =C2                   3    C
+
+/*CTL1 =C2                   2    F
  * perform self calibration	00
- * powerdown =RESET  		  11
+ * powerdown =RESET  		  10
  * unipolar					    1
  * format = offset binary 	     1
- * Scycle = single cycle		  0
- * Contsc = single cycle           0
+ * Scycle = single cycle		  1
+ * Contsc = single cycle           1
 */ 
 		buff[0] = 0xc2;		// CTRL1
-		buff[1] = 0x3c;		// CTRL1 data
+		buff[1] = 0x2f;		// CTRL1 data
 		spiWrite(spi.cs_adc, buff, 2);
 		usleep(200000);
 		 
-		buff[0] = 0x9e;		// Conversion calibration 
-		spiWrite(spi.cs_adc, buff, 1);
-		usleep(200000); 
 
-/*SEQ = D0					8    0
- * mux=ch 4					100
+/*SEQ = D0					0    2
+ * mux=ch 4					000
  * mode=seq 1				   0 0
  * gpodren=0				      0
- * mdren=0					       0
+ * mdren=0					       1
  * rdyben=0					        0
 */
 		buff[0] = 0xd0;		//SEQ  command
-		buff[1] = 0x80;		//SEQ  data
+		buff[1] = 0x02;		//SEQ  data
 		spiWrite(spi.cs_adc, buff, 2);
-		usleep(1000); 
+		usleep(1000); 	
 
-//SELF CALIBRATION  (p.33)		
-/*CTL1 =C2                   2    C
- * perform self calibration	00
- * powerdown =STANDBY		  10
- * unipolar					    1
- * format = offset binary 	     1
- * Scycle = single cycle		  0
- * Contsc = single cycle           0
-*/ 
-		buff[0] = 0xc2;		// CTRL1
-		buff[1] = 0x2c;		// CTRL1 data
-		spiWrite(spi.cs_adc, buff, 2);
-		usleep(200000); 
-		
-		buff[0] = 0xae;		// Conversion calibration
-		spiWrite(spi.cs_adc, buff, 1);
-		usleep(200000); 
-
-			
-/*Convert					B    E
- * convert code				1011
- * sample rate=64000sps		    1110
-*/
 		buff[0] = 0xbe;		// Convert at 6400sps
 		spiWrite(spi.cs_adc, buff, 1);
-//		usleep(2000); 			
+		usleep(100000); 			
 
 		goto END;
 	}
@@ -895,24 +797,19 @@ void* read_adc( int cmd_flag )
 		spi.adc_reg[4] = 0xe5;
 		spi.adc_reg[5] = 0xe7;
 
-		
-//SELF CALIBRATION  (p.33)		
-/*CTL1 =C2                   2    C
+/*CTL1 =C2                   2    E
  * perform self calibration	00
  * powerdown =STANDBY		  10
  * unipolar					    1
  * format = offset binary 	     1
- * Scycle = single cycle		  0
- * Contsc = single cycle           0
-*/ 
+ * Scycle = single cycle		  1
+ * Contsc = single cycle           0  */
 		buff[0] = 0xc2;		// CTRL1
-		buff[1] = 0x2c;		// CTRL1 data
+		buff[1] = 0x2e;		// CTRL1 data
 		spiWrite(spi.cs_adc, buff, 2);
-		usleep(200000); 
+		usleep(100); 
 
-
-			
-/*SEQ = D0					1    2
+/*SEQ = D0					0    a
  * mux=0 					000
  * mode=2					   0 1
  * gpodren=0				      0
@@ -920,84 +817,41 @@ void* read_adc( int cmd_flag )
  * rdyben=0					        0
 */
 		buff[0] = 0xd0;		//SEQ  command
-		buff[1] = 0x0b;		//select seq mod 2, enable delay
+		buff[1] = 0x0a;		//select seq mod 2, enable delay
 		spiWrite(spi.cs_adc, buff, 2);
-/*		buff[0] = 0xd0;		//SEQ  command
-		buff[1] = 0x2b;		//select seq mod 2, enable delay
-		spiWrite(spi.cs_adc, buff, 2);
-		buff[0] = 0xd0;		//SEQ  command
-		buff[1] = 0x4b;		//select seq mod 2, enable delay
-		spiWrite(spi.cs_adc, buff, 2);
-		buff[0] = 0xd0;		//SEQ  command
-		buff[1] = 0x6b;		//select seq mod 2, enable delay
-		spiWrite(spi.cs_adc, buff, 2);
-		buff[0] = 0xd0;		//SEQ  command
-		buff[1] = 0x8b;		//select seq mod 2, enable delay
-		spiWrite(spi.cs_adc, buff, 2);
-		buff[0] = 0xd0;		//SEQ  command
-		buff[1] = 0xab;		//select seq mod 2, enable delay
-		spiWrite(spi.cs_adc, buff, 2);
-*/
 		
 		buff[0] = 0xca;		// DELAY
 		buff[1] = 0xf0;		// 
 		buff[2] = 0x00;
 		spiWrite(spi.cs_adc, buff, 3);
-		usleep(1000); 
-		
-/*		buff[0] = 0xc6;		//CRTL3
-		buff[1] = 0x5c;
-		spiWrite(spi.cs_adc, buff, 2);
-		usleep(100); 
-*/
-
-		buff[0] = 0xce;		// CHMAP0
-		buff[1] = 0x0d;		// chan 2
-		buff[2] = 0x0a;		// chan 1
-		buff[3] = 0x06;		// chan 0
+			
+		buff[0] = 0xce;		// ==> CHMAP0
+		buff[1] = 0x0e;		// chan 3
+		buff[2] = 0x0a;		// chan 2
+		buff[3] = 0x06;		// chan 1
 		spiWrite(spi.cs_adc, buff, 4);
-		usleep(100); 
 		
-		buff[0] = 0xcc;		// CHMAP1
-		buff[1] = 0x1a;		// chan 5
-		buff[2] = 0x16;		// chan 4
-		buff[3] = 0x12;		// chan 3
+		buff[0] = 0xcc;		// ==> CHMAP1
+		buff[1] = 0x1a;		// chan 6
+		buff[2] = 0x16;		// chan 5
+		buff[3] = 0x12;		// chan 4
 		spiWrite(spi.cs_adc, buff, 4);
-		usleep(1000); 
 		
-		buff[0] = 0xc2;		// CTRL1
-		buff[1] = 0x22;		// CTRL1 data
-		spiWrite(spi.cs_adc, buff, 2);
-		usleep(1000); 
-	
-
-		
-/*Convert					B    E
- * convert code				1011
- * sample rate=64000sps		    1110
-*/
-		buff[0] = 0xbe;		// Convert at 6400sps
-		spiWrite(spi.cs_adc, buff, 1);
-		usleep(200000); 			
-
 		goto END;
 	}
 
 
 	if( cmd_flag == step ) {
-		
+
+/*Convert					B    E
+ * convert code				1011
+ * sample rate=64000sps		    1110  */
+		buff[0] = 0xbe;					// Convert! (6400sps)
+		spiWrite(spi.cs_adc, buff, 1);
+		usleep(10000); 			
 
 		for ( n=0; n<6; n++) {
-/*			buff[0] = 0xd0;		//SEQ  command
-			buff[1] = (n<<5) + 2;		//SEQ  data
-//			fprintf(spi.fp, " seq buff=%0x\n",buff[1]); 
-			spiWrite(spi.cs_adc, buff, 2);
-			usleep(1000); 			
-			
-			buff[0] = 0xbe;					// Convert! (6400sps)
-			spiWrite(spi.cs_adc, buff, 1);
-			usleep(100000); 
-*/			
+		
 			buff[0] = spi.adc_reg[n];	//select a channel to read
 			spiXfer(spi.cs_adc, buff, buff_rx, 4);
 			eq.CJ[0] = buff_rx[3];
@@ -1006,10 +860,9 @@ void* read_adc( int cmd_flag )
 			eq.CJ[3] = buff_rx[0];
 			spi.ADC[n] = (float) eq.J / adc_bits * Vref;
 //			fprintf( spi.fp, " acd %d, = %0x,  %.4f\n",  n, eq.J, spi.ADC[n]);
-			usleep(1000);
 		}
-		fprintf( spi.fp, "ADC[0-5]= %.4f, %.4f, %.4f, %.4f, %.4f, %.4f\n",
-		spi.ADC[0],spi.ADC[1],spi.ADC[2],spi.ADC[3],spi.ADC[4],spi.ADC[5]);
+//		fprintf( spi.fp, "ADC[0-5]= %.4f, %.4f, %.4f, %.4f, %.4f, %.4f\n",
+//		spi.ADC[0],spi.ADC[1],spi.ADC[2],spi.ADC[3],spi.ADC[4],spi.ADC[5]);
 
 
 		goto END;
@@ -1283,7 +1136,7 @@ int help_menu()
 	printf( "h = THIS help menu\n" );	
 
 	
-	sleep(2);
+	sleep(1);
 	return 0 ;
 }
 
