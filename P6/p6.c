@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <stdio.h>		//20180322.1138
 #include <stdlib.h>
 #include <termios.h>
 #include <poll.h>
@@ -372,15 +372,15 @@ GPIO:
 
 PLL:
 		if (spi.thread_status == kill ) { goto CLOSE; }
-		if (spi.frequency > 10000) spi.frequency = 0;
-		spi.frequency = spi.frequency + 100;				//100KHz, maybe...
+//		if (spi.frequency > 10000) spi.frequency = 0;
+//		spi.frequency = spi.frequency + 100;				//100KHz, maybe...
 
 		gpioWrite (RF_en, 1) ;	
-		set_pll( step );	
+//		set_pll( step );	
 		usleep(10);
 		
 //		read_adc( step );
-//		gpioWrite (RF_en, 0) ;	
+		gpioWrite (RF_en, 0) ;	
 		usleep(2);
 
 		fprintf( fp, " freq=%d, power out = %.4f\n",
@@ -639,12 +639,8 @@ void* set_pll( int cmd_flag )
 	union equivs { unsigned int J; unsigned char CJ[4]; } eq;
 	char buff[4];
 	unsigned int N;
-	int n;
+	int i, n;
 	
-	
-	if( cmd_flag == idle ) {
-		goto END;
-	}
 	
 	if( cmd_flag == init ) {
 		N = spi.frequency/625 *2;			//  freq is frequency in KHz
@@ -655,13 +651,6 @@ void* set_pll( int cmd_flag )
 		spi.PLL[4] = 0x6090d03c;	  
 		spi.PLL[5] = 0x00400005;
 */		
-/*		spi.PLL[0] = 0x00d38070;	//example output=2117.8MHz	
-		spi.PLL[1] = 0x200080c9;
-		spi.PLL[2] = 0x00004042;
-		spi.PLL[3] = 0x0000000b;
-		spi.PLL[4] = 0x609c803c;	  
-		spi.PLL[5] = 0x00400005;
-*/	
 		spi.PLL[0] = 0x81400000;	//example output=100MHz	
 		spi.PLL[1] = 0x8000ce21;
 		spi.PLL[2] = 0x00008142;
@@ -677,57 +666,34 @@ void* set_pll( int cmd_flag )
 		spi.PLL[5] = 0x00400005;
 */
 
-							// must be written in this order
-		for ( n=5; n>-1; n--) {
-			eq.J = spi.PLL[n];
-			buff[0] = eq.CJ[3];
-			buff[1] = eq.CJ[2];
-			buff[2] = eq.CJ[1];
-			buff[3] = eq.CJ[0];
-/*			buff[0] = eq.CJ[0];
-			buff[1] = eq.CJ[1];
-			buff[2] = eq.CJ[2];
-			buff[3] = eq.CJ[3];
-*/
-//			fprintf( spi.fp, " n= %d, spi= %x  buff= %x, %x, %x, %x\n",
+		for ( i=0; i>1; i++) {			// write init twice
+			for ( n=5; n>-1; n--) {		// registers in this order
+				eq.J = spi.PLL[n];
+				buff[0] = eq.CJ[3];
+				buff[1] = eq.CJ[2];
+				buff[2] = eq.CJ[1];
+				buff[3] = eq.CJ[0];
+				spiWrite(spi.cs_pll, buff, 4);
+//				fprintf( spi.fp, " n= %d, spi= %x  buff= %x, %x, %x, %x\n",
 //		                      n, eq.J, buff[0], buff[1], buff[2], buff[3] );
-			spiWrite(spi.cs_pll, buff, 4);
+			}
+			usleep(20000);	
 		}
-		usleep(20000);	
-		for ( n=5; n>-1; n--) {
-			eq.J = spi.PLL[n];
-			buff[0] = eq.CJ[3];
-			buff[1] = eq.CJ[2];
-			buff[2] = eq.CJ[1];
-			buff[3] = eq.CJ[0];
-/*			buff[0] = eq.CJ[0];
-			buff[1] = eq.CJ[1];
-			buff[2] = eq.CJ[2];
-			buff[3] = eq.CJ[3];
-*/
-			spiWrite(spi.cs_pll, buff, 4); 
-		}	
 		goto END;
 	}
 	
 	if( cmd_flag == step ) {
-/*		n=8;
 		N = spi.frequency/625 *2;
-		spi.PLL[0] = 0x80000000 | N<<15;
-*/
-			eq.J = spi.PLL[0];
-			buff[0] = eq.CJ[3];
-			buff[1] = eq.CJ[2];
-			buff[2] = eq.CJ[1];
-			buff[3] = eq.CJ[0];
-/*			buff[0] = eq.CJ[0];
-			buff[1] = eq.CJ[1];
-			buff[2] = eq.CJ[2];
-			buff[3] = eq.CJ[3];
-*/
-		fprintf( spi.fp, " pll = %x  buff= %x, %x, %x, %x\n",
-					eq.J, buff[0], buff[1], buff[2], buff[3] );
+//		spi.PLL[0] = 0x80000000 | N<<15;
+
+		eq.J = spi.PLL[0];
+		buff[0] = eq.CJ[3];
+		buff[1] = eq.CJ[2];
+		buff[2] = eq.CJ[1];
+		buff[3] = eq.CJ[0];
 		spiWrite(spi.cs_pll, buff, 4);
+		fprintf( spi.fp, " pll(s) = %x  buff= %x, %x, %x, %x\n",
+							eq.J, buff[0], buff[1], buff[2], buff[3] );
 	}
 
 END:
