@@ -379,13 +379,13 @@ PLL:
 		set_pll( step );	
 		usleep(10);
 		
-//		read_adc( step );
+		read_adc( step );
 		gpioWrite (RF_en, 0) ;	
 		usleep(2);
 
 		fprintf( fp, " freq=%d, power out = %.4f\n",
 					spi.frequency, spi.ADC[forward]);
-		goto PLL;
+		goto CLOSE;
 	}
 	
 	
@@ -636,8 +636,9 @@ END:
 ///////////////////////////////////////////
 void* set_pll( int cmd_flag )
 {
-	union equivs { unsigned int J; unsigned char CJ[4]; } eq;
-	char buff[4];
+
+	union equiv { unsigned int J; char CJ[4]; } eq;
+	char buff[4],  buf8[8], buf8_rx[8];
 	unsigned int N;
 	int i, n;
 	
@@ -732,13 +733,28 @@ REG5				0    0  	6    0		0    0		0    5
 				buff[2] = eq.CJ[1];
 				buff[3] = eq.CJ[0];
 				spiWrite(spi.cs_pll, buff, 4);
-//				fprintf( spi.fp, " n= %d, spi= %x  buff= %x, %x, %x, %x\n",
-//		                      n, eq.J, buff[0], buff[1], buff[2], buff[3] );
+				fprintf( spi.fp, " n= %d, spi= %x  buff= %x, %x, %x, %x\n",
+		                      n, eq.J, buff[0], buff[1], buff[2], buff[3] );
 			}
 			usleep(20000);	
 		}
+
+//select reg6 to read  0x00000006
+		buf8[0] = 0x00;
+		buf8[1] = 0x00;
+		buf8[2] = 0x00;
+		buf8[3] = 0x06;
+		buf8[4] = 0x00;
+		buf8[5] = 0x00;
+		buf8[6] = 0x00;
+		buf8[7] = 0x00;
+		spiXfer(spi.cs_pll, buf8, buf8_rx, 8);
+				fprintf( spi.fp, " REG6= %x, %x, %x, %x\n",
+		                      buf8[4], buf8[5], buf8[6], buf8[7] );		
 		goto END;
+		
 	}
+
 	
 	if( cmd_flag == step ) {
 		N = spi.frequency/625 *2;
