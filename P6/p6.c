@@ -376,7 +376,7 @@ PLL:
 //		spi.frequency = spi.frequency + 100;				//100KHz, maybe...
 
 		gpioWrite (RF_en, 1) ;	
-//		set_pll( step );	
+		set_pll( step );	
 		usleep(10);
 		
 //		read_adc( step );
@@ -650,21 +650,79 @@ void* set_pll( int cmd_flag )
 		spi.PLL[3] = 0x0000000b;
 		spi.PLL[4] = 0x6090d03c;	  
 		spi.PLL[5] = 0x00400005;
-*/		
+		
 		spi.PLL[0] = 0x81400000;	//example output=100MHz	
 		spi.PLL[1] = 0x8000ce21;
 		spi.PLL[2] = 0x00008142;
 		spi.PLL[3] = 0x0000000b;
 		spi.PLL[4] = 0x60d6203c;	  
 		spi.PLL[5] = 0x00400005;
+*/
 /*
+  see     www.maximintegrated.com/en/app-notes/index.mvp/id/5498
+byte & nibble msb	31   27		23   19		15   11		7    3
+REG0				8    1		4    0		0    0		0    0
+	int/frac flag	1
+	int div value	.000 0001	0100 0000							(320d)
+	reg#												.... .000
+	* 
+	
+REG1				8    0		0    0		C    E		2    1
+	reserved		0
+	CP linearity	.00.
+	CP test mode	...0 0...
+	phase value			  000	0000 0000	0...
+	modulus value							.000 0000	0000 0...
+	reg#													 .001
+	*
+
+REG2				1    0  	0    0		8    1		4    2
+	mux_out			...1 00..										<<<<
+	RD2 ref doubler 	 ..0.	
+	RDIV2			.... ...0 
+	R ref div cntr				0000 0000	10..
+	double buffer							..0.
+	CP current								...0 000.
+	LDF lock detect							.... ...1
+	LDP lock precision									0... ....
+	PDP phase polarity									.1.. ....
+	SHDN power down										..0. ....
+	TRI CP tridstate									...0 ....
+	RST counter											.... 0...
+	reg#												.... .010
+	* 
+REG3				0    0  	0    0		0    0		0    B
+	CDIV									.000 0000	0000 1...
+	reg#												.... .011
+	* 
+REG4				6    0  	C    6		4    0		3    C
+	max2871			0110 00..
+	RFout divider				.110 ....
+	BS band clk div				     0110	0100
+	RFV_en									.... ...0
+	Bpwr												00.. ....
+	RFA_en												..1. ....
+	Apwr												...1 1...
+	reg#												.... .100
+	* 
+
+REG5				0    0  	6    0		0    0		0    5	
+	max2871			0110 000.
+	F01 int/frac	.... ...0
+	Lock Det. pin				01.. ....
+	MUX3 pin					..1. ....
+	ADC start											.0.. ....
+	ADC mode											..00 0...
+	reg#												.... .101
+	*
+*/
 		spi.PLL[0] = 0x81400000;	//example output=200MHz	
 		spi.PLL[1] = 0x8000ce21;
-		spi.PLL[2] = 0x00008142;
+		spi.PLL[2] = 0x10008142;
 		spi.PLL[3] = 0x0000000b;
 		spi.PLL[4] = 0x60c6403c;	  
-		spi.PLL[5] = 0x00400005;
-*/
+		spi.PLL[5] = 0x00600005;
+
 
 		for ( i=0; i>1; i++) {			// write init twice
 			for ( n=5; n>-1; n--) {		// registers in this order

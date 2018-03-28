@@ -25,6 +25,17 @@ To push the local repository to github,
 git remote add origin https://github.com/transmute-inc/projects.git
 git push -u origin master  (user=transmute-inc  pass=proton2018)
 
+
+
+************** what to do it your head is detached ****************
+use This is a good answer, but I think there is no need for the temp branch
+ (although I usually use one my self). 
+git branch -f master HEAD && git checkout master 
+is enough -- assuming your goal is to keep your current head 
+but to designate it as master. Other goals also make sense, and 
+call for other recipes.
+
+
 https://stackoverflow.com/questions/5772192/how-can-i-reconcile-detached-head-with-master-origin
 
 To recover from your situation, you should create a branch that points to the commit currently pointed to by your detached HEAD:
