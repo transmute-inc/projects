@@ -40,11 +40,11 @@ the Raspberry Pi Forums ( http://www.raspberrypi.org/forums/ ) for support.
 6. Serial port   https://spellfoundry.com/2016/05/29/configuring-gpio-serial-port-raspbian-jessie-including-pi-3/
 6.1 Continue editing /boot/config.txt to enable the serial port
 	enable_uart=1		# enable /dev/ttyS0 (/dev/serial0 is alias)
-6.2 Disable the Console
+6.2 Disable the Console from using the uart - we need to use it for the vacuum gage.
 	$ sudo systemctl stop serial-getty@ttyS0.service
 	$ sudo systemctl disable serial-getty@ttyS0.service
 
-6.3 Remove the console from the cmdline.txt. If you edit this with:
+6.3 Remove the console from the cmdline.txt - it defaults to 9600 baud. If you edit this with:
 	$ sudo nano /boot/cmdline.txt
 
 	you will see something like:
@@ -55,71 +55,45 @@ the Raspberry Pi Forums ( http://www.raspberrypi.org/forums/ ) for support.
 6.4 Clone github repository. www.github.com  user=transmute-inc, pass=proton2018
 
 7. Current status of 32G micro SD cards
+	#5  32g debian 2.4.5 clone of #6 for Chris
+
 	#1  debian 170925  steps 1-6.4 - Bob (K1 on SD card)
 	#2  debian 170925  steps 1-6.4 copied to Bob
-	#3  last OS before system stopped booting
-	#4  last good (still boots)
-	#5  32g debian 2.4.5 clone of #6 for Chris
-	#6  8g debian 2.4.5 steps 1-6.4 180117
-	#7  8g debian 2.4.5 clone of #6
+	#3  32g free
+	#4  32g clone of #6 180409
+	
+	#6  8g Last good 2.4.5 rpi3 before noobs 2.7.0 download 180409
+	#7  8g 2.7.0 clone of #A
 	#8  8g free
 	#9  8G fat32 xfer drive
 
-8. Link to dropbox uploader https://www.raspberrypi.org/magpi/dropbox-raspberry-pi/
-	github.com/andreafabrizi/Dropbox-Uploader.git
-	./dropbox_uploader.sh
+	#A  16g 2.7.0 180410 Kim
+	#B  16g 2.7.0 180410 Bob
 	
-github.com/andreafabrizi/Dropbox-Uploader.git
-
-
-set larger font
-http://raspberrypi.stackexchange.com/questions/1453/is-there-a-way-increase-text-size-in-raspbian
-sudo dpkg-reconfigure console-setup
-or
-setfont /usr/share/consolefonts/Lat15-TerminusBold20x10.psf.gz
-setfont /usr/share/consolefonts/Lat15-TerminusBold32x16.psf.gz
-
-
-Text editors are vim, nano, pico     https://itsfoss.com/notepad-alternatives-for-linux/
-install apps 
-sudo apt-get install     (vim,     
-
-install git (if missing)
-sudo apt-get install git-core
+8. Update the OS		# www.raspberrypi.org/documentation/raspbian/
 sudo apt-get update
 sudo apt-get upgrade
+sudo apt-get dist-upgrade	# upgrade all installed packages
+df -h				# check on space left sd card
+sudo apt-get clean		# remove install files to free up space
 
 
-wiringpi.com/download-and-install
-git clone git://git.drogon.net/wiringPi
-
-cd wiringPi
-git pull origin
-
-cd wiringPi
-./build
-
-gpio -v
-gpio readall
+9. Text editors can be run from command window.
+	leafpad  		# like notepad, default on file browser
+	nano			# quick and dirty 
+	vi			# (Vim 8.0)    
 
 
-Here is how to make the rpi work with 3840x2160 monitor, as per 
-https://www.raspberrypi.org/forums/viewtopic.php?f=29&t=187737
-https://www.raspberrypi.org/forums/viewtopic.php?f=38&t=79330
+8. Link to dropbox uploader 	# work in progress - I do not have this working yet.
+	https://www.raspberrypi.org/magpi/dropbox-raspberry-pi/
+	github.com/andreafabrizi/Dropbox-Uploader.git
+	./dropbox_uploader.sh
 
 
-I used the below lines in config.txt
 
-    hdmi_group=2
-    hdmi_mode=87
-    hdmi_cvt 3840 2160 24
-    max_framebuffer_width=3840
-    max_framebuffer_height=2160
-    hdmi_pixel_freq_limit=400000000 
-    disable_overscan=1
-    hvs_priority=0x32ff
 
-sudo rpi-update && sudo reboot   
+
+
 
 
   
