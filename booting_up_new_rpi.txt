@@ -1,4 +1,4 @@
-NOOBS INSTALLATION INSTRUCTIONS
+NOOBS INSTALLATION INSTRUCTIONS starting from a Windows machine:
 
 1. Insert a micro SD card that is 8GB or greater in size into USB port of your computer.
 2. Format the SD card using the platform-specific instructions below:
@@ -21,16 +21,20 @@ the Raspberry Pi Forums ( http://www.raspberrypi.org/forums/ ) for support.
 	Setup Wifi (symbol in upper right hand corner of screen.
 	Download pigpio library from http://abyz.co.uk/rpi/pigpio/
 	install pigpio library to use both the SPI0 and SPI1 ports
-		cd PIGPIO
-		make
-		sudo make install  
-		sudo chmod a+w /var/run/pigpio.pid              (otherwise, gpio will not init.) 
+		
+	cd PIGPIO
+	make
+	sudo make install  
+!!!-->	sudo chmod a+w /var/run/pigpio.pid              (otherwise, gpio will not init.) 
 
 5. Enable SPI and check /boot/overlays/README disable spi0 hardware chipselects
  (www.raspberrypi.org/documentation/configuration/device-tree.md) 
 
 	sudo nano /boot/config.txt    uncomment (remove #) on 
-	dtparam=spi=on  	# enable SPI0
+	dtparam=spi=on  				# enable SPI0
+	dtoverlay=spi1-3cs,cs0_pin=18,cs1_pin=17	# enable SPI1
+
+	
 
 	##### dtoverlay=spi1-3cs,cs0_pin=gpio16,cs1_pin=gpio26,cs2_pin=gpio13 # enable SPI1 & set CS pins
 	170907 - I oculd not get this to work, so modify the PCB.
@@ -53,8 +57,19 @@ the Raspberry Pi Forums ( http://www.raspberrypi.org/forums/ ) for support.
 	remove the line: console=serial0,115200 and save and reboot for changes to take effect.
 
 6.4 Clone github repository. www.github.com  user=transmute-inc, pass=proton2018
+	download zip file and create projects directory
+	git config --global user.name "kim hailey"		# or Bob	
+	git config --global user.email "kimh@transmute.com"	# your email
+	git config --global core.editor leafpad
 
-7. Current status of 32G micro SD cards
+	cd projects
+	git init
+
+7. Clone a backup of the SD disk using the SD card copier accessory. 
+Be sure to check "New Partition UUIDs" so you can mount the copied sd card. 
+SD disks must have different UUIDs to be mounted concurrently on the same system.
+
+Current status of 32G micro SD cards (180410)
 	#5  32g debian 2.4.5 clone of #6 for Chris
 
 	#1  debian 170925  steps 1-6.4 - Bob (K1 on SD card)
@@ -67,16 +82,16 @@ the Raspberry Pi Forums ( http://www.raspberrypi.org/forums/ ) for support.
 	#8  8g free
 	#9  8G fat32 xfer drive
 
-	#A  16g 2.7.0 180410 Kim
-	#B  16g 2.7.0 180410 Bob
+	#A  16g 2.7.0 180410 Kim	# os is 4.4g, but 8g is not quite big enough
+	#B  16g 2.7.0 180410 Bob	# 32g takes too long to image, so 16g is just right!
 	
 8. Update the OS		# www.raspberrypi.org/documentation/raspbian/
-sudo apt-get update
-sudo apt-get upgrade
-sudo apt-get dist-upgrade	# upgrade all installed packages
-df -h				# check on space left sd card
-sudo apt-get clean		# remove install files to free up space
-
+	sudo apt-get update
+	sudo apt-get upgrade
+	sudo apt-get dist-upgrade	# upgrade all installed packages
+	df -h				# check on space left sd card
+	sudo apt-get clean		# remove install files to free up space
+	
 
 9. Text editors can be run from command window.
 	leafpad  		# like notepad, default on file browser

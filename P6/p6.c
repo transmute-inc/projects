@@ -155,7 +155,6 @@ int main(void)
 	spi.cs_att = spiOpen(0, spiBaud, 256);	//ce0   18   12	(p1-37->p1-12) 
 	spi.cs_pll = spiOpen(1, spiBaud, 256);	//ce1   17   11	(p1-36->p1-11)
 
-
     pthread_t *thread_s, *thread_v;		
 
 	spi.thread_status = not_running;
@@ -386,7 +385,7 @@ PLL:
 
 		fprintf( fp, " freq=%d, power out = %.4f\n",
 					spi.frequency, spi.ADC[forward]);
-		goto CLOSE;
+		goto PLL;
 	}
 	
 	
@@ -726,7 +725,7 @@ REG5				0    0  	6    0		0    0		0    5
 		spi.PLL[5] = 0x00600005;
 
 
-		for ( i=0; i>1; i++) {			// write init twice
+		for ( i=0; i<2; i++) {			// write init twice
 			for ( n=5; n>-1; n--) {		// registers in this order
 				eq.J = spi.PLL[n];
 				buff[0] = eq.CJ[3];
