@@ -6,27 +6,6 @@
 #include <errno.h>
 #include <stdlib.h>
 
-#include <pthread.h>
-#include <sys/types.h>  // needed for getpid()
-#include <unistd.h>     // needed for getpid()
-
-#include <wiringPi.h>
-//include <wiringPiSPI.h>
-//include <wiringSerial.h>
-
-
-
-/*
-* 
-* http://www.makelinux.net/alp/028   (threads)
-* 
-* gcc -Wall -o k10 k10.c -lwiringPi -lthread
-* sudo ./k5
-* gcc -Wall -ggdb -o k10 k10.c -lwiringPi -lthread
-* sudo gdb ./k5
-*
-*/
-
 
 unsigned int Fref,DBR,Rdiv2,R,Fpfd,N,F,Mod,DIVA,Fvco,RFoutA;
 unsigned int BS, Cdiv;
@@ -42,7 +21,7 @@ int main(void)
 	DBR = 1;				//Fref multiplier	reg2<25>
 	Rdiv2 = 1;				//Fref divider		reg2<24>
 	R = 1;					//R divider bits	reg<23:14> 
-	Fpfd = Fref*(2^DBR) / (2^Rdiv2) / R;	//Comparison frequency
+	Fpfd = Fref*(1<<DBR) / (1<<Rdiv2) / R;	//Comparison frequency
 
 
 	N = 320;				//integer mult		reg0<30:15>  N<15:0>  
@@ -51,7 +30,9 @@ int main(void)
 	DIVA = 6;				//A-divider			reg DIVA<2:0>
 	Fvco = (N + (F/Mod)) * Fpfd;			//Voltage Controlled Osc. Freq
 
-	RFoutA =  Fvco / (2^DIVA);
+	RFoutA =  Fvco / (1<<DIVA);
+	
+	RFoutA = N * Fref / R / (1<<DIVA);		// for integer mode, eqn reduces to this
 	printf(  " Fpfs = %x,  Fvco= %x, RFoutA =  %x\n",
 				Fpfd, Fvco, RFoutA);
 	printf(  " Fpfd = %d,  Fvco= %d, RFoutA =  %d\n",
