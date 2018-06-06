@@ -3,7 +3,7 @@
 
 CC 	= gcc
 CFLAGS 	= -Wall -pthread -I. -lpigpio -lrt
-DEPS 	= ~/projects/gnuplot/gnuplot_i.h
+DEPS 	= ~/projects/gnuplot/gnuplot_i.h ~/projects/P6/max2871.h
 OBJS 	= ~/projects/gnuplot/gnuplot_i.o p6.o
 
 %.o:	%.c $(DEPS)
