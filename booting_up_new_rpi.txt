@@ -72,7 +72,7 @@ SD disks must have different UUIDs to be mounted concurrently on the same system
 Current status of 32G micro SD cards (180410)
 	#5  32g debian 2.4.5 clone of #6 for Chris
 
-	#1  32g debian 170925  steps 1-6.4 - Bob (K1 on SD card)
+	#1  32g debian 2.7.0 180608 for rpi 3B to Chris
 	#2  debian 170925  steps 1-6.4 copied to Bob
 	#3  32g free
 	#4  32g clone of #6 180409

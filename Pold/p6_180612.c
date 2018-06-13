@@ -96,6 +96,7 @@ typedef struct spi_control {
 
 int   getch(int32_t ms);		// routine calling definitions
 void* spi_thread( void *s );
+int d_a_bob( );
 int* ce_Test( );
 
 void adc_init_mode1( );
@@ -255,10 +256,10 @@ int main(void)
 
 
 
-//		printf("\t dac_test=%.4f  adc_test=%4f\n", spi.DAC[dac_test], spi.ADC[adc_test]);
+		printf("\t dac_test=%.4f  adc_test=%4f\n", spi.DAC[dac_test], spi.ADC[adc_test]);
 //		printf("\t vac.gage=%.4f\n",vgage.gage);
 		c=x;
-//		printf( "\t %d  x=%c \n", count, c);
+		printf( "\t %d  x=%c \n", count, c);
 		count = count+1;
 		usleep(500000);
 
@@ -301,22 +302,24 @@ void *spi_thread( void *ss )
 	
 	
 // select a letter to call the associated routine
-	spi.cmd='f';  
+	spi.cmd='d';  
+LOOP:
+	if (spi.thread_status == kill ) { goto CLOSE; }
 
-	if (spi.thread_status != kill ) {
-
-		if     (spi.cmd=='a')	{ dac_adc_Test(); }	//cycles dac_test line 0v->2.44v
-		else if(spi.cmd=='c')	{ ce_Test(); } 		//chip enables with one byte data
-		else if(spi.cmd=='g')	{ gpio_Test( ); }	//valve test
-		else if(spi.cmd=='t')	{ att_Test( ); }	//just sets the PE43711 attenuator
-		else if(spi.cmd=='l')	{ logamp_Test( ); }	//reads voltages on logamps
-		else if(spi.cmd=='d')	{ dac_Sweep( 0.0, 2.44, 0.1, 10000, dac_test,10);}
-		else if(spi.cmd=='p')	{ pll_Test( ); }
-		else if(spi.cmd=='f')	{ find_resonance( 100, 200, 5, 1000);}
+	if     (spi.cmd=='a')	{ dac_adc_Test(); }	//cycles dac_test line 0v->2.44v
+	else if(spi.cmd=='c')	{ ce_Test(); } 		//chip enables with one byte data
+	else if(spi.cmd=='g')	{ gpio_Test( ); }	//valve test
+	else if(spi.cmd=='t')	{ att_Test( ); }	//just sets the PE43711 attenuator
+	else if(spi.cmd=='l')	{ logamp_Test( ); }	//reads voltages on logamps
+	else if(spi.cmd=='d')	{ dac_Sweep( 0.0, 2.44, 0.1, 10000, dac_test,10);}
+	else if(spi.cmd=='p')	{ pll_Test( ); }
+	else if(spi.cmd=='P')	{ 
+		pll_IntSweep( 50, 200, 5, 1000);
+		pll_IntSweep( 200, 50, 5, 1000);}
 		
-	}
+	goto LOOP;	
 		
-
+CLOSE:	
 	spi.thread_status = not_running ;
 	fclose(fp);
 	
@@ -326,43 +329,42 @@ void *spi_thread( void *ss )
 ///////////////////////////////////////////	
 void find_resonance(uint32_t start, uint32_t end, uint32_t df, uint32_t dt){
 						// start, df, end in MHz,   dt in usec
-	uint32_t megahz, for_max_mhz, for_min_mhz, ref_max_mhz, ref_min_mhz;
-	float for_max, for_min, ref_max, ref_min;
+	uint32_t megahz, num_points, for_max_mhz, for_min_mhz, ref_max_mhz, ref_min_mhz;
+	float for_ave, for_max, for_min, ref_ave, ref_max, ref_min;
 	
 	
 	megahz = start;
-	for_max = -100;
-	for_min = 20;
-	ref_max = -100;
-	ref_min = 20;
-	for_max_mhz = start;
-	for_min_mhz = start;
-	ref_max_mhz = start;
-	ref_min_mhz = start;
+	num_points = (end - start) / df;
+	for_ave = 0;
+	for_max = 0;
+	for_min = 0;
+	ref_ave = 0;
+	ref_max = 0;
+	ref_min = 0;
 	
 
 	FILE *res_fp;
 	res_fp = fopen( "res.dat", "w+" );
 
 					//sweep up
-	while ( megahz <= end ) {
-		if (spi.thread_status == kill) { break; }
+	while ( megahz < end ) {
+		if (spi.thread_status == kill) { return; }
 		pll_SetIntfreq( megahz );
 		usleep(10);
 		adc_read();
 		if( spi.ADC[forward] > for_max) {
-			for_max = spi.DB[forward] ;
+			spi.ADC[forward] = for_max;
 			for_max_mhz = megahz; }
 		if( spi.ADC[reflected] > ref_max) {
-			ref_max = spi.DB[reflected] ;	
+			spi.ADC[reflected] = ref_max;	
 			ref_max_mhz = megahz; }
 		if( spi.ADC[forward] < for_min) {
-			for_min = spi.DB[forward] ;
+			spi.ADC[forward] = for_min;
 			for_min_mhz = megahz; }
 		if( spi.ADC[reflected] < ref_min) {
-			ref_min = spi.DB[reflected] ;	
+			spi.ADC[reflected] = ref_min;	
 			ref_min_mhz = megahz; }
-		fprintf( res_fp, " %d %.4f %.4f\n", megahz, spi.DB[forward], spi.DB[reflected]);	
+		fprintf( res_fp, " %d %.4f %.4f\n", megahz, spi.ADC[forward], spi.ADC[reflected]);	
 		usleep(dt);
 		megahz = megahz + df;
 	}
@@ -380,9 +382,9 @@ void find_resonance(uint32_t start, uint32_t end, uint32_t df, uint32_t dt){
 	
 	gnuplot_setstyle(h1, "lines") ;
 	gnuplot_cmd(h1, "set xlabel 'Freq MHz' ") ;
-	gnuplot_cmd(h1, "plot './res.dat' using 1:2 with lines title 'forward DB', './res.dat' using 1:3 with lines title 'reflected DB'") ;
+	gnuplot_cmd(h1, "plot 'res.dat' using 1:2 title 'forward DB', 'res.dat' using 1:3 title 'reflected DB'") ;
 
-	sleep (20 );
+	sleep (10 );
 	gnuplot_close(h1) ;
 
 
@@ -402,48 +404,53 @@ void pll_write( uint32_t data ) {
 	buff[3] = eq.CJ[0];
 
 	spiWrite(spi.pll_fd, buff, 4);
-//	fprintf( spi.fp, " spi_wr = %x  buff= %x, %x, %x, %x\n",
-//					eq.J, buff[0], buff[1], buff[2], buff[3] );	
+	fprintf( spi.fp, " spi_wr = %x  buff= %x, %x, %x, %x\n",
+					eq.J, buff[0], buff[1], buff[2], buff[3] );	
 }
 
 ///////////////////////////////////////////
-void pll_Test( ){		
-/* 
- * Connect RF-OUT SMA to the FORWARD SMA
- * checks PLL, ATT, and logamp
- * Altoernatively, connect RF-OUT to scope
- * 
- */	
+void pll_Test( )
+{
+//	dac_init( );				//write .5v to dac_adc_test
+	eq.J = 0.5 /Vref * dac_bits;	//just to insure adc is working
+	buff[0] = 0x38;
+	buff[1] = eq.CJ[1];
+	buff[2] = eq.CJ[0];
+	spiWrite(spi.dac_fd, buff, 3);
+ 			
 	spi.frequency = 100;				//50MHz, maybe...
+//	pll_Init( );
 	
 	spi.attenuation = 0;
 	att_Set( spi.attenuation );
 
+//	adc_init_mode1();
 	gpioWrite (RF_en, 1) ;	
 
-	if (spi.thread_status != kill ) { 
-
-		spi.attenuation = 0;
-		att_Set( spi.attenuation );
-		spi.frequency = 50;				//50MHz
-		pll_SetIntfreq( spi.frequency );	
-		usleep(100);
+PLL:
+	spi.attenuation = 0;
+	att_Set( spi.attenuation );
+	if (spi.thread_status == kill ) { goto CLOSE; }
+	spi.frequency = 50;				//50MHz
+	pll_SetIntfreq( spi.frequency );	
+	usleep(100);
 //	adc_read( );
 //	fprintf( spi.fp, " freq=%d, power out = %.4f\n",
 //				spi.frequency, spi.ADC[forward]);
-		usleep(100000);
+	usleep(100000);
 		
-		spi.attenuation = 16;
-		att_Set( spi.attenuation );
-		spi.frequency = 100;			//100MHz
-		pll_SetIntfreq( spi.frequency );			
-		usleep(100);
+	spi.attenuation = 16;
+	att_Set( spi.attenuation );
+	spi.frequency = 100;			//100MHz
+	pll_SetIntfreq( spi.frequency );			
+	usleep(100);
 //	adc_read( );
 //	fprintf( spi.fp, " freq=%d, power out = %.4f\n",
 //				spi.frequency, spi.ADC[forward]);
-		usleep(100000);
-	}
+	usleep(100000);
+	goto PLL;
 
+CLOSE:
 	gpioWrite (RF_en, 0) ;
 	
 }
@@ -706,16 +713,86 @@ void pll_IntSweep(uint32_t start, uint32_t end, uint32_t df, uint32_t dt){
 ///////////////////////////////////////////
 void pll_SetIntfreq( int32_t megahz )
 {	
-	uint32_t Fref,diva,N;
-	Fref = 10;						//xtal reference frenquency in MHz
-	diva = -1;						// find the DivA that 300<N<600
-	while( N < 300 ) {
+		uint32_t Fref,diva,N;
+		Fref = 10;						//xtal reference frenquency in MHz
+		diva = -1;						// find the DivA that 300<N<600
+Loop:
 		diva = diva + 1;
 		N = megahz / Fref * 1<<diva ;	//  freq is frequency in MHz
-	}
+		if( N < 300 ) goto Loop;
 
-	pll_SetN(N);
-	pll_SetDIVA(diva);
+		pll_SetN(N);
+		pll_SetDIVA(diva);
+}
+
+///////////////////////////////////////////
+int d_a_bob( )
+{
+	char buff[4];
+	
+//1:	
+	adc_status();
+	dac_init( );
+		spi.adc_reg[0] = 0xdd;
+		spi.adc_reg[1] = 0xdf;
+		spi.adc_reg[2] = 0xe1;
+		spi.adc_reg[3] = 0xe3;
+		spi.adc_reg[4] = 0xe5;
+		spi.adc_reg[5] = 0xe7;
+	
+// Initialization stuff
+		buff[0] = 0xd0;		// ==> SEQ register
+		buff[1] = 0x0a;		//select seq mod 2, enable delay
+		spiWrite(spi.adc_fd, buff, 2);
+		usleep(1000); 
+		
+		buff[0] = 0xca;		// ==> Delay register
+		buff[1] = 0xf0;		//select chan 1, enable delay
+		buff[2] = 0x00; 
+		spiWrite(spi.adc_fd, buff, 2);
+		usleep(1000); 
+				
+		buff[0] = 0xce;		// ==> CHMAP0
+		buff[1] = 0x0e;		// chan 3
+		buff[2] = 0x0a;		// chan 2
+		buff[3] = 0x06;		// chan 1
+		spiWrite(spi.adc_fd, buff, 4);
+		usleep(100); 
+		
+		buff[0] = 0xcc;		// ==> CHMAP1
+		buff[1] = 0x1a;		// chan 6
+		buff[2] = 0x16;		// chan 5
+		buff[3] = 0x12;		// chan 4
+		spiWrite(spi.adc_fd, buff, 4);
+		usleep(100); 
+		
+		buff[0] = 0xc2;		// ==> CTRL1
+		buff[1] = 0x2e;		// CTRL1 data
+		spiWrite(spi.adc_fd, buff, 2);
+		usleep(100); 
+		
+		adc_status();
+
+
+LOOP:
+		if (spi.thread_status == kill ) { return 0;}
+	
+		spi.DAC[dac_test] = .5;
+		dac_write( );
+		usleep(1000); 
+
+		adc_read( );
+		usleep(1000); 
+
+		spi.DAC[dac_test] = 1.0;
+		dac_write( );
+
+		adc_read( );
+																						
+		adc_status();
+
+		goto LOOP;
+
 }
 
 ///////////////////////////////////////////
@@ -724,8 +801,9 @@ int* ce_Test( )
 	char buff[4], buff_rx[4];	
 	buff[0] = 0x55;
 	buff_rx[0] = 0x99;
-
-	while (spi.thread_status != kill ) { 
+	
+LOOP:
+		if (spi.thread_status == kill ) { return 0; }
 		spiWrite(spi.dac_fd, buff, 1);
 		usleep(20);
 		spiXfer(spi.adc_fd, buff, buff_rx, 1);
@@ -734,8 +812,7 @@ int* ce_Test( )
 		usleep(20);
 		spiWrite(spi.att_fd, buff, 1);
 		usleep(20);
-	}
-	return 0;
+		goto LOOP;
 }
 
 ///////////////////////////////////////////
@@ -983,7 +1060,7 @@ void dac_adc_Test( )  {
 	int32_t count;
 	count = 0;
 
-
+DAC:
 	if (spi.thread_status != kill ) {
 		count = count + 1;
 		spi.DAC[cathode] = 0.0;
@@ -1005,12 +1082,15 @@ void dac_adc_Test( )  {
 		adc_read( );
 		fprintf( spi.fp, " %d, vin=%.4f  vout=%.4f\n", count, spi.DAC[dac_test], spi.ADC[adc_test]);	
 	}
-							
-	spi.DAC[cathode] = 0;	//reset voltage = 0 and bail
-	spi.DAC[einzel1] = 0;
-	spi.DAC[einzel2] = 0;
-	spi.DAC[dac_test] = 0;
-	dac_write( );
+	else {							//reset voltage = 0 and bail
+		spi.DAC[cathode] = 0;
+		spi.DAC[einzel1] = 0;
+		spi.DAC[einzel2] = 0;
+		spi.DAC[dac_test] = 0;
+		dac_write( );
+		return;
+	}	
+	goto DAC;
 
 //	fprintf( fp, " S %d, AM=%.4f, FP=%.4f, RP=%.4f, SP=%.4f, TST=%.4f\n",  
 //	count, spi.ADC[ammeter],spi.ADC[forward],spi.ADC[reflected],
@@ -1068,19 +1148,22 @@ void* logamp_Test( )
 	adc_init_mode2();	
 	adc_status();
 
-	while (spi.thread_status != kill ) {
-		adc_read( );
-		printf(" Pfor= %.4f, Prev= %.4f\r", spi.ADC[forward],spi.ADC[reflected]);
-	}
-	return 0;
+			
+LOOP:
+	if (spi.thread_status == kill ) { return 0; }
+
+	adc_read( );
+
+	printf(" Pfor= %.4f, Prev= %.4f\r", spi.ADC[forward],spi.ADC[reflected]);
+	goto LOOP;
  
 }
 
 ///////////////////////////////////////////
 void* gpio_Test( )
 {
-
-	if (spi.thread_status != kill ) {
+GPIO:
+		if (spi.thread_status == kill ) { return 0; }
 		gpioWrite(H2_in, 1);
 		usleep(100000);
 		gpioWrite(H2_in, 0);
@@ -1094,8 +1177,8 @@ void* gpio_Test( )
 		usleep(100000);
 		gpioWrite(Vac_pump, 0);
 		usleep(100000);
-	 }
-	return 0; 
+		goto GPIO;
+
 
 }
 

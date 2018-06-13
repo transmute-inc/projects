@@ -2,7 +2,7 @@
 # CFLAGS 	= -Wall -O3 -ggdb -I. -lpthread -lpigpio -lrt
 
 CC 	= gcc
-CFLAGS 	= -Wall -pthread -I. -lpigpio -lrt
+CFLAGS 	= -Wall -ggdb -pthread -I. -lpigpio -lrt
 DEPS 	= ~/projects/gnuplot/gnuplot_i.h ~/projects/P6/max2871.h
 OBJS 	= ~/projects/gnuplot/gnuplot_i.o p6.o
 
