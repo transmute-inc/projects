@@ -61,6 +61,7 @@ typedef struct vac_gage {
 	float gage;
 	float set_point;
 	float deadband;
+	char msg[20];
 } vac;
 
 	vac vgage;				// global structure!!
@@ -95,7 +96,7 @@ typedef struct spi_control {
 	
 
 int   getch(int32_t ms);		// routine calling definitions
-void* spi_thread( void *s );
+void* _spi_thread( void *s );
 int* ce_Test( );
 
 void adc_init_mode1( );
@@ -131,8 +132,9 @@ void pll_IntSweep(uint32_t a, uint32_t b, uint32_t df, uint32_t dt);
 void find_resonance(uint32_t start, uint32_t end, uint32_t df, uint32_t dt);
 void* logamp_Test( );
 void* gpio_Test( );
-void* vac_thread( void *v );
-int   gage_read( );
+void* _vac_thread( void *v );
+int   serial_gage_init( );
+int   serial_gage_read( );
 int   serial_test( );
 int   plotit( );
 int   help_menu( );
@@ -163,6 +165,7 @@ int main(void)
  	gpioSetMode(Vac_pump, PI_OUTPUT);
   	gpioSetMode(RF_en, PI_OUTPUT);
 
+	serial_gage_init( );
 
 	spi.adc_fd = spiOpen(0, spiBaud, 0);	//CE0   08   24	 T11	
 	spi.dac_fd = spiOpen(1, spiBaud, 0);	//CE1   07   26  T12
@@ -221,7 +224,7 @@ int main(void)
 		}
 		if (x == 't')		// Read rs-232 port
 		{
-			gage_read( );
+			serial_gage_read( );
 
 		}
 		if (x == 'g')		// gnuplot
@@ -239,7 +242,7 @@ int main(void)
 		if (x == 'w' && spi.thread_status == not_running) // spi
 		{
 			spi.thread_status = running;	
-			thread_s = gpioStartThread(spi_thread, &spi );	
+			thread_s = gpioStartThread( _spi_thread, &spi );	
 		}
 
 		if (x == 'p' && vgage.thread_status == not_running) //gage
@@ -249,7 +252,7 @@ int main(void)
 			vgage.set_point = 10.0;
 			vgage.deadband = 2.0;					//2.65 regulates at 3.1T
 		
-			thread_v = gpioStartThread( vac_thread, &vgage );
+			thread_v = gpioStartThread( _vac_thread, &vgage );
 		}
 		system("clear");
 
@@ -286,7 +289,7 @@ int main(void)
 }
 
 ///////////////////////////////////////////
-void *spi_thread( void *ss )
+void *_spi_thread( void *ss )
 {
 //	spi_c* s = (spi_c*) ss;
 
@@ -301,13 +304,14 @@ void *spi_thread( void *ss )
 	
 	
 // select a letter to call the associated routine
-	spi.cmd='f';  
+	spi.cmd='s';  
 
 	if (spi.thread_status != kill ) {
 
 		if     (spi.cmd=='a')	{ dac_adc_Test(); }	//cycles dac_test line 0v->2.44v
 		else if(spi.cmd=='c')	{ ce_Test(); } 		//chip enables with one byte data
 		else if(spi.cmd=='g')	{ gpio_Test( ); }	//valve test
+		else if(spi.cmd=='s')	{ serial_test( ); }	//serial i/o test
 		else if(spi.cmd=='t')	{ att_Test( ); }	//just sets the PE43711 attenuator
 		else if(spi.cmd=='l')	{ logamp_Test( ); }	//reads voltages on logamps
 		else if(spi.cmd=='d')	{ dac_Sweep( 0.0, 2.44, 0.1, 10000, dac_test,10);}
@@ -1100,7 +1104,7 @@ void* gpio_Test( )
 }
 
 ///////////////////////////////////////////
-void *vac_thread( void *vv )
+void *_vac_thread( void *vv )
 {
 	vac* v = (vac*) vv; 				// cast the void* to struct type
   
@@ -1115,7 +1119,7 @@ MEASURE:
 	if (v->thread_status == kill ) { goto EXIT; }
 
 	usleep(dwell_time);	
-	gage_read();
+	serial_gage_read();
 	v->gage = vgage.gage;
 	count = count + 1;
 	fprintf( fp, "%d, %.4f\n", count, v->gage);
@@ -1159,36 +1163,44 @@ EXIT:									// turn everything off before exit
 	pthread_exit(NULL);
 }
 
+///////////////////////////////////////////
+int serial_gage_init( )
+{
+	char *device;
+/*
+ * 	if no gage, connect Tx to Rx and uncomment loopback test above
+ *  
+ */
+	vgage.gage = 0.0;
+	vgage.status = 1;
+	vgage.serBaud = 9600;
+	vgage.serFlags = 0;
+	device = "/dev/serial0";   // for usb, check /dev/serial/by-id/*
+	strcpy(vgage.msg , "@253PR4?;FF" );
+
+	if( ( vgage.fd = serOpen ( device , vgage.serBaud, vgage.serFlags )) <0) 
+	{
+		perror("serial device not opened\n");
+	}
+	return 0;
+}
 
 
 ///////////////////////////////////////////
-int gage_read( )
+int serial_gage_read( )
 {
 	int32_t i, len, j ;
-	char *device;
-	char c[20] = "@253PR4?;FF";					//normal request
-//	char c[20] = "@253ACK1.234E-1;FF";			// loopback test
 	char d[20] = {'b','i','l','b','o','\0'};
 	char e[10] ;
 	
-	if( vgage.status == 0)		// setup the gage
-	{		
-		vgage.gage = 0.0;
-		vgage.status = 1;
-		vgage.serBaud = 9600;
-		vgage.serFlags = 9600;
-		device = "/dev/serial0";   // for usb, check /dev/serial/by-id/*
+/*
+ * 	if no gage, connect Tx to Rx and uncomment loopback test above
+ *  
+ */
 
-		if( ( vgage.fd = serOpen ( device , vgage.serBaud, vgage.serFlags )) <0) 
-		{
-			perror("serial device not opened\n");
-		}
-	}
-
-
-	len = strlen(c);
-	write (vgage.fd, c, len) ;
-//	printf( " write gate=%s\n", c);
+	len = strlen(vgage.msg);
+	serWrite (vgage.fd, vgage.msg, len) ;
+	printf( " write gage=%s\n", vgage.msg);
     usleep(300000) ;
     
     if( serDataAvailable( vgage.fd ) )
@@ -1210,8 +1222,47 @@ int gage_read( )
 				}
 			}
 		    vgage.gage = atof(e);
-//			printf ( " string=%s   %.4f\n", e,vgage.gage );
+			printf ( " string=%s   %.4f\n", e,vgage.gage );
 		}
+	}
+
+	return 0;
+}
+
+
+///////////////////////////////////////////
+int   serial_test( )
+{
+	int32_t  len ;
+	char *device;
+	char d[20] = {'b','i','l','b','o','\0'};
+
+/*
+ * 	if no gage, connect Tx to Rx and uncomment loopback test above
+ *  
+ */
+	
+	vgage.gage = 0.0;
+	vgage.status = 1;
+	vgage.serBaud = 9600;
+	vgage.serFlags = 0;
+	device = "/dev/serial0";   // for usb, check /dev/serial/by-id/*
+	strcpy(vgage.msg , "@253ACK1.234E-1;FF" );
+
+	if( ( vgage.fd = serOpen ( device , vgage.serBaud, vgage.serFlags )) <0) 
+	{
+		perror("serial device not opened\n");
+	}
+
+	len = strlen(vgage.msg);
+	serWrite (vgage.fd, vgage.msg, len) ;
+	printf( " write gage=%s\n", vgage.msg);
+    usleep(300000) ;
+    
+    if( serDataAvailable( vgage.fd ) )
+    { 
+		serRead ( vgage.fd, d, 20) ;
+		printf( " read=%s\n", d );
 	}
 
 	return 0;
