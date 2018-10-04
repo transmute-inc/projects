@@ -1,0 +1,160 @@
+78a79,83
+> 	uint32_t sw_freq[1000];	// set up sweep arrays
+> 	float sw_forward[1000];
+> 	float sw_reflected[1000];
+> 	float sw_d_forward[1000];
+> 	float sw_d_reflected[1000];
+173d177
+< 	gpioSetMode(att_cs, PI_OUTPUT);
+257c261
+< 		system("clear");
+---
+> //		system("clear");
+333a338
+> 	uint32_t i,num_points;
+334a340
+> 	float forward_db, reflected_db;
+338,341c344,347
+< 	for_max = -100;
+< 	for_min = 20;
+< 	ref_max = -100;
+< 	ref_min = 20;
+---
+> 	for_max = 0;
+> 	for_min = Vref;
+> 	ref_max = 0;
+> 	ref_min = Vref;
+349a356,359
+> 	FILE *res_d_fp;
+> 	res_d_fp = fopen( "res_d.dat", "w+" );
+> 	i=0;
+> 
+352,353c362,364
+< 	while ( megahz <= end ) {
+< 		if (spi.thread_status == kill) { break; }
+---
+> 	while ( megahz <= end ) {if (spi.thread_status == kill) { break; }
+> 
+> 		i=i+1;
+358c369
+< 			for_max = spi.DB[forward] ;
+---
+> 			for_max = spi.ADC[forward] ;
+361c372
+< 			ref_max = spi.DB[reflected] ;	
+---
+> 			ref_max = spi.ADC[reflected] ;	
+364c375
+< 			for_min = spi.DB[forward] ;
+---
+> 			for_min = spi.ADC[forward] ;
+367c378
+< 			ref_min = spi.DB[reflected] ;	
+---
+> 			ref_min = spi.ADC[reflected] ;	
+369c380,387
+< 		fprintf( res_fp, " %d %.4f %.4f\n", megahz, spi.DB[forward], spi.DB[reflected]);	
+---
+> 
+> 		spi.sw_freq[i] = megahz;						//stuff the sweep arrays
+> 		spi.sw_forward[i] = spi.ADC[forward];			//do all the calc in voltages
+> 		spi.sw_reflected[i] = spi.ADC[reflected];
+> 		
+> 		forward_db = spi.ADC[forward] /0.021 - 87; //convert to dBv
+> 		reflected_db = spi.ADC[reflected] /0.021 - 87;
+> 		fprintf( res_fp, " %d %.4f %.4f\n", megahz, forward_db, reflected_db);	
+373a392,403
+> 	num_points = i;				
+> 	spi.sw_forward[0] = spi.sw_forward[1];						// fix up the end points
+> 	spi.sw_reflected[0] = spi.sw_reflected[1];					// so first and last derivatives
+> 	spi.sw_forward[num_points+1] = spi.sw_forward[num_points];	// are reasonable
+> 	spi.sw_reflected[num_points+1] = spi.sw_reflected[num_points];
+> 		
+> 	for ( i=1; i <= num_points; i=i+1) {				// now calculate first derivatives
+> 		spi.sw_d_forward[i] = (spi.sw_d_forward[i+1] - spi.sw_d_forward[i-1]) / 2;
+> 		spi.sw_d_reflected[i] = (spi.sw_d_reflected[i+1] - spi.sw_d_reflected[i-1]) / 2;
+> 		fprintf( res_d_fp, " %d %.4f %.4f\n", spi.sw_freq[i], spi.sw_d_forward[i], spi.sw_d_reflected[i]);				
+> 	}
+> 	
+387c417,420
+< 	gnuplot_cmd(h1, "plot './res.dat' using 1:2 with lines title 'forward DB', './res.dat' using 1:3 with lines title 'reflected DB'") ;
+---
+> 	gnuplot_cmd(h1, "plot './res.dat' using 1:2 with lines title 'forward DB', \
+> 						  './res.dat' using 1:3 with lines title 'reflected DB' \
+> 						  './res_d.dat' using 1:2 with lines title 'forward delta', \
+> 						  './res_d.dat' using 1:3 with lines title 'reflected delta'  ") ;
+421,426c454
+< 	spi.frequency = 50;				//50MHz, maybe...
+< 	pll_SetIntfreq( spi.frequency );			
+< 	
+< 	spi.attenuation = 0;
+< 	att_Set( spi.attenuation );
+< 
+---
+> 	pll_SetIntfreq( 60 );	
+433,436c461,464
+< 		spi.attenuation = 0;
+< 		att_Set( spi.attenuation );
+< //		spi.frequency = 50;				//50MHz
+< //		pll_SetIntfreq( spi.frequency );	
+---
+> 		gpioWrite (H2_in,  0);			// use gpio4 as a sync for the o´scope
+> 
+> 		att_Set( 3 );		
+> //		pll_SetIntfreq( 50 );	
+437a466
+> 		
+441c470,475
+< //		usleep(100000);
+---
+> //	usleep(100000);
+> 
+> 		gpioWrite (H2_in, 1);		
+> 		att_Set( 31.75 );			//max attenuation
+> //		pll_SetIntfreq( 100 );			
+> 		usleep(10);
+443,447d476
+< 		spi.attenuation = 16;
+< 		att_Set( spi.attenuation );
+< //		spi.frequency = 100;			//100MHz
+< //		pll_SetIntfreq( spi.frequency );			
+< 		usleep(100);
+452,453c481
+< 		goto LOOP;
+< 		
+---
+> 
+456c484
+< 		return;
+---
+> 		return ;
+457a486,487
+> 
+> 	goto LOOP;
+754c784,785
+< 	union equivs { uint32_t J; unsigned char CJ[4]; } eq;
+---
+> //	uint32_t int_atten;
+> 
+756,757c787,789
+< 	
+< 	eq.J = abs(atten)*4;			// attenuation in quarter dB steps
+---
+> 	union equivs { uint32_t J; unsigned char CJ[4]; } eq;
+> 
+> 	eq.J = (int) (atten*4);				// attenuation in quarter dB steps
+761d792
+< 
+767,768c798
+< 	spi.attenuation = -16;
+< 	att_Set( spi.attenuation );
+---
+> 	att_Set( 16 );
+928,930c958,960
+< 		spi.DB[forward] = spi.ADC[forward] /0.021 - 87; //convert to dBv
+< 		spi.DB[reflected] = spi.ADC[reflected] /0.021 - 87;
+< 		spi.DB[sniffer] = spi.ADC[sniffer] /0.021 - 87;	
+---
+> //		spi.DB[forward] = spi.ADC[forward] /0.021 - 87; //convert to dBv
+> //		spi.DB[reflected] = spi.ADC[reflected] /0.021 - 87;
+> //		spi.DB[sniffer] = spi.ADC[sniffer] /0.021 - 87;	
