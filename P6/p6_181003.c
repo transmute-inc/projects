@@ -41,18 +41,16 @@
 #define  Vref		2.44	// vref is common for adc & dac
 #define  dac_bits	65535
 #define  adc_bits	16777215
-
 #define  forward	0		// AIN0P
 #define  reflected	1		// AIN1P
 #define  sniffer	2		// AIN2P
 #define  ammeter	3		// AIN3P
 #define  adc_test	4		// AIN4P
 #define  adc_spare	5		// AIN5P
-
 #define  cathode	0		// DAC0
-#define  einzel1	1		// DAC1
-#define  einzel2	2		// DAC2
-#define  dac_test	3		// DAC3 -- drives AIN4P
+#define  einzel1	0		// DAC1
+#define  einzel2	0		// DAC2
+#define  dac_test	0		// DAC3 -- drives AIN4P
 
 
 
@@ -73,10 +71,10 @@ typedef struct vac_gage {
 
 typedef struct spi_control {
 
-	uint32_t thread_status, task_status;
-	uint32_t start, last, end;
+	uint32_t thread_status;
+	uint32_t task_status;
 	FILE *fp;
-	char cmd;
+	char cmd[4];
 	
 	uint32_t pll_fd;
 	uint32_t pll_reg[6];	// reg0-reg5 !write in reverse order!
@@ -166,12 +164,6 @@ union equivs { uint32_t J; unsigned char CJ[4]; } eq;
 
 int main(void)
 {
-	clock_t tic = clock();
-	spi.start = tic;
-	spi.last = tic;
-//	clock_t toc = clock();
-//	printf("Elapsed: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
-
 	if (gpioInitialise() < 0)
 	{
 		printf( "gpio did not initiallize");
@@ -201,18 +193,17 @@ int main(void)
 	system("clear");
 	help_main_menu();
 	
+//	clock_t tic = clock();
+//	clock_t toc = clock();
+//	printf("Elapsed: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
 
 	
 	do {
-		main_cmd = 0;
-		do{
-			main_cmd = getch(500);
-		}while(main_cmd==0);
-		printf("%s\n",&main_cmd);	
+		main_cmd = getch(500);
   
 		if (main_cmd == 'q') {		//quit any running threads
 			if (spi.thread_status == running) {	
-//				spi.thread_status = kill;	//this will signal spi processes to exit
+				spi.thread_status = kill;	//this will signal spi processes to exit
 				spi.task_status = kill;
 			}
 			if (vgage.thread_status == running) {
@@ -244,8 +235,6 @@ int main(void)
 		}
 		if (main_cmd == 't') {	// Read rs-232 port
 			serial_gage_read( );
-			printf ( " gage=  %.4f\n", vgage.gage );
-
 		}
 		if (main_cmd == 'g') {	// gnuplot
 			plotit( );
@@ -253,31 +242,28 @@ int main(void)
 		if (main_cmd == 'h') {	// print help menu
 			help_main_menu( );
 		}
-		if (main_cmd == 'p' && vgage.thread_status == not_running) { //gage
-			vgage.thread_status = running;		// 
-			vgage.set_point = 10.0;
-			vgage.deadband = 2.0;					//2.65 regulates at 3.1T
-			thread_v = gpioStartThread( _vac_thread, &vgage );
-		}
 		if (main_cmd == 'w')  {	// spi
 			system("clear");
 			help_s_menu( );
-			spi.cmd = 0;
+			spi.cmd[0] = 0;
 			do{
-				spi.cmd = getch(500);
-			}while(spi.cmd==0);
+				spi.cmd[0] = getch(500);
+			}while(spi.cmd[0]==0);
 			
-			printf("%s\n", &spi.cmd);
-			if (spi.cmd == 'q') {		//quit any running spi programs
+			if (spi.cmd[0] == 'q') {		//quit any running spi programs
 				spi.task_status = kill;
-			}else {
-				spi.task_status = running;
 			}
 			
 			if(spi.thread_status == not_running) {
 				spi.thread_status = running;	
 				thread_s = gpioStartThread( _spi_thread, &spi );
 			}
+		}
+		if (main_cmd == 'p' && vgage.thread_status == not_running) { //gage
+			vgage.thread_status = running;		// 
+			vgage.set_point = 10.0;
+			vgage.deadband = 2.0;					//2.65 regulates at 3.1T
+			thread_v = gpioStartThread( _vac_thread, &vgage );
 		}
 
 	}while (main_cmd != 'z');
@@ -301,44 +287,34 @@ int main(void)
 	gpioStopThread( thread_s );
 	gpioStopThread( thread_v );
     gpioTerminate();
-	clock_t toc = clock();
-	printf("Elapsed: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
-
 }
 
 ///////////////////////////////////////////
 void *_spi_thread( void *ss )
 {
 //	spi_c* s = (spi_c*) ss;
-	uint32_t count;
 
 	FILE *fp;
 	fp = fopen( "spi.dat", "w+" );
 	spi.fp = fp;
-	count = 0;
 	
 	dac_init( );
 	adc_init_mode2();	
 	pll_Init( );
+	spi.task_status = not_running;
 
 	while(spi.thread_status != kill){
-		
-		if     (spi.cmd=='a'){spi.cmd=0;dac_adc_Test(); }	//cycles dac_test line 0v->2.44v
-		else if(spi.cmd=='c'){spi.cmd=0;ce_Test(); } 		//chip enables with one byte data
-		else if(spi.cmd=='g'){spi.cmd=0;gpio_Test( ); }		//valve test
-		else if(spi.cmd=='s'){spi.cmd=0;serial_test( ); }	//serial i/o test
-		else if(spi.cmd=='t'){spi.cmd=0;att_Test( ); }		//just sets the PE43711 attenuator
-		else if(spi.cmd=='l'){spi.cmd=0;logamp_Test( ); }	//reads voltages on logamps
-		else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0.0, 2.44, 0.1, 10000, cathode,10);}
-		else if(spi.cmd=='p'){spi.cmd=0;pll_Test( ); }
-		else if(spi.cmd=='f'){spi.cmd=0;find_resonance( 100, 200, 5, 1000);}
-
-		usleep(100000);
-		clock_t toc = clock();
-//		fprintf(spi.fp, "spi: %d,  %s,   %f seconds\n", count, &spi.cmd, 
-//		(double)(toc - spi.last) / CLOCKS_PER_SEC);
-		spi.last = toc;
-		count++;
+		if     (spi.cmd[0]=='a')	{ dac_adc_Test(); }	//cycles dac_test line 0v->2.44v
+		else if(spi.cmd[0]=='c')	{ ce_Test(); } 		//chip enables with one byte data
+		else if(spi.cmd[0]=='g')	{ gpio_Test( ); }	//valve test
+		else if(spi.cmd[0]=='s')	{ serial_test( ); }	//serial i/o test
+		else if(spi.cmd[0]=='t')	{ att_Test( ); }	//just sets the PE43711 attenuator
+		else if(spi.cmd[0]=='l')	{ logamp_Test( ); }	//reads voltages on logamps
+		else if(spi.cmd[0]=='d')	{ dac_Sweep( 0.0, 2.44, 0.1, 10000, dac_test,10);}
+		else if(spi.cmd[0]=='p')	{ pll_Test( ); }
+		else if(spi.cmd[0]=='f')	{ find_resonance( 100, 200, 5, 1000);}
+		else if(spi.cmd[0]=='q')	{ spi.task_status = kill;}
+		usleep(1000);
 	}
 	
 	spi.thread_status = not_running ;
@@ -437,6 +413,7 @@ void find_resonance(uint32_t start, uint32_t end, uint32_t df, uint32_t dt){
 
 	sleep (20 );
 	gnuplot_close(h1) ;
+	spi.cmd[0] = 0;
 	return;
 
 }
@@ -486,6 +463,7 @@ void pll_Test( ){
 	}
 	
 	gpioWrite (RF_en, 0) ;
+	spi.cmd[0] = 0;
 	return ;	
 }
 
@@ -741,7 +719,7 @@ void pll_IntSweep(uint32_t start, uint32_t end, uint32_t df, uint32_t dt){
 			megahz = megahz - df;
 		}
 	}
-	spi.cmd = 0;
+	spi.cmd[0] = 0;
 	return;
 }
 
@@ -777,6 +755,7 @@ int* ce_Test( )
 		spiWrite(spi.att_fd, buff, 1);
 		usleep(20);
 	}
+	spi.cmd[0] = 0;
 	return 0;
 }
 
@@ -811,6 +790,7 @@ void att_Test( ) {
 		delta = delta + 4.0;
 		usleep(1000);
 	}
+	spi.cmd[0] = 0;
 	return;
 }
 
@@ -832,7 +812,7 @@ up:		att_Set( atten );
 		atten = atten - df;
 		if ( atten > end ) goto up;
 	}
-	spi.cmd = 0;
+	spi.cmd[0] = 0;
 	return;
 }
 
@@ -956,7 +936,7 @@ void adc_read( )
 	buff[0] = 0xbe;					// Convert! (6400sps)
 	spiWrite(spi.adc_fd, buff, 1);
 	usleep(500); 			
-	num_channels = 5;											//TEMP!!!!! 5->1
+	num_channels = 1;											//TEMP!!!!! 5->1
 	for ( n=0; n<num_channels; n++) {
 		
 		buff[0] = spi.adc_reg[n];	//select a channel to read
@@ -966,7 +946,7 @@ void adc_read( )
 		eq.CJ[2] = buff_rx[1];
 		eq.CJ[3] = buff_rx[0];
 		spi.ADC[n] = (float) eq.J / adc_bits * Vref;
-		fprintf( spi.fp, " acd %d, = %0x,  %.4f\n",  n, eq.J, spi.ADC[n]);
+//		fprintf( spi.fp, " acd %d, = %0x,  %.4f\n",  n, eq.J, spi.ADC[n]);
 	}
 	
 	
@@ -1046,15 +1026,15 @@ void dac_adc_Test( )  {
 	count = 0;
 
 	while (spi.task_status != kill && count < 10) {
-//		count = count + 1;
+		count = count + 1;
 		
 		spi.DAC[cathode] = 0.0;
-		spi.DAC[einzel1] = 0.1;
-		spi.DAC[einzel2] = 0.2;
-		spi.DAC[dac_test] = 0.4;
+		spi.DAC[einzel1] = 0.0;
+		spi.DAC[einzel2] = 0.0;
+		spi.DAC[dac_test] = 0.0;
 		dac_write( );
 		adc_read( );
-		fprintf( spi.fp, " %d, DAC=%.4f  ADC=%.4f\n", 
+		fprintf( spi.fp, " %d, vin=%.4f  vout=%.4f\n", 
 		  count, spi.DAC[dac_test], spi.ADC[adc_test]);	
 		usleep(1000);
 
@@ -1064,7 +1044,7 @@ void dac_adc_Test( )  {
 		spi.DAC[dac_test] = 2.44;
 		dac_write( );
 		adc_read( );
-		fprintf( spi.fp, " %d, DAC=%.4f  ADC=%.4f\n", 
+		fprintf( spi.fp, " %d, vin=%.4f  vout=%.4f\n", 
 		  count, spi.DAC[dac_test], spi.ADC[adc_test]);	
 		usleep(1000);
 		
@@ -1080,6 +1060,7 @@ void dac_adc_Test( )  {
 //	count, spi.ADC[ammeter],spi.ADC[forward],spi.ADC[reflected],
 //	spi.ADC[sniffer],spi.ADC[adc_test]);
 
+	spi.cmd[0] = 0;
 	return;
 }
 
@@ -1121,22 +1102,20 @@ void dac_Sweep(float start, float end, float dv, uint32_t dt, uint32_t channel, 
 	}
 
 	spi.DAC[channel] = 0.0;
-	return ;
 }
 
 ///////////////////////////////////////////
 void* logamp_Test( )
 {
 	int32_t count;
-	
-	count=0;
-	while (spi.task_status != kill && count <10) {
-//		count++;
+
+	while (spi.task_status != kill && count <1) {
+		count++;
 		adc_read( );
-		printf( " Pfor= %.4f, Prev= %.4f\r", 
-//		fprintf( spi.fp," Pfor= %.4f, Prev= %.4f\r", 
+		fprintf( spi.fp," Pfor= %.4f, Prev= %.4f\r", 
 			spi.ADC[forward],spi.ADC[reflected]);
 	}
+	spi.cmd[0] = 0;
 	return 0;
  
 }
@@ -1146,19 +1125,20 @@ void* gpio_Test( )
 {
 	while (spi.task_status != kill) {
 		gpioWrite(H2_in, 1);
-		usleep(500000);
+		usleep(100000);
 		gpioWrite(H2_in, 0);
 		gpioWrite(H2_out, 1);	
-		usleep(500000);
+		usleep(100000);
 		gpioWrite(H2_out, 0);
 		gpioWrite(Vac, 1);
-		usleep(500000);
+		usleep(100000);
 		gpioWrite(Vac, 0);
 		gpioWrite(Vac_pump, 1);
-		usleep(500000);
+		usleep(100000);
 		gpioWrite(Vac_pump, 0);
-		usleep(500000);
+		usleep(100000);
 	 }
+	spi.cmd[0] = 0;
 	return 0; 
 
 }
@@ -1304,7 +1284,7 @@ int   serial_test( )
 // serial_gage_init is called at top of main
 	
 	count = 0;
-	while (spi.task_status != kill && count <5) { 
+	while (spi.task_status != kill && count <1) { 
 		count++;
 //		gpioWrite (H2_in, 1) ;	
 		len = strlen(vgage.msg);
@@ -1318,6 +1298,7 @@ int   serial_test( )
 			fprintf( spi.fp, " serial read=%s\n", d );
 		}
 	}
+	spi.cmd[0] = 0;
 	return 0;
 	
 }

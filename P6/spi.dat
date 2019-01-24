@@ -1,5 +1,0 @@
- PLL reg0-5 = 80a00000, 103e9, 10005f42, 1f23, 63de80fc, 400005
-for_max 1.0069 @ 100 mhz
-ref_max 0.0000 @ 100 mhz
-for_min 0.5812 @ 195 mhz
-ref_min 0.0000 @ 100 mhz

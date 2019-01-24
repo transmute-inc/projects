@@ -77,26 +77,29 @@ Current status of 32G micro SD cards (180410)
 	#5  32g debian 2.4.5 clone of #6 for Chris
 
 	#1  32g debian 2.7.0 180608 for rpi 3B to Chris
-	#2  debian 170925  steps 1-6.4 copied to Bob
-	#3  32g free
+	#2  debian 9.4 181010 copied to Bob (has 2 & B)
+	#3  32g debian 9.5 181011 copied to Bob
 	#4  32g clone of #6 180409
 	
 	#6  8g Last good 2.4.5 rpi3 before noobs 2.7.0 download 180409
-	#7  8g 2.7.0 clone of #A
-	#8  8g free
+	#7  8g clone of 181010
+	#8  8g music & xfer
 	#9  8G fat32 xfer drive
 
-	#A  16g 2.7.0 180410 Kim	# os is 4.4g, but 8g is not quite big enough
+	#A  16g debian 9.5 181010	# os is 4.4g, but 8g is not quite big enough
 	#B  16g 2.7.0 180410 Bob	# 32g takes too long to image, so 16g is just right!
 	#C  16g backup of #A
 	
 8. Update the OS		# www.raspberrypi.org/documentation/raspbian/
+	lsb_release -da			# current release
 	sudo apt-get update
 	sudo apt-get upgrade
 	sudo apt-get dist-upgrade	# upgrade all installed packages
 	df -h				# check on space left sd card
 	sudo apt-get clean		# remove install files to free up space
-	
+	sudo apt autoremove
+http://markjatboinc.blogspot.com/2017/09/add-stretch-backports-to-rpi.html
+
 
 9. Text editors can be run from command window.
 	leafpad  		# like notepad, default on file browser

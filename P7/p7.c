@@ -8,8 +8,6 @@
 #include <time.h>
 
 
-
-
 #include <pthread.h>
 #include <sys/types.h>  // needed for getpid()
 #include <unistd.h>     // needed for getpid()
@@ -21,10 +19,10 @@
 #include "max2871.h"	
 
 /*
-* gcc -Wall -o p6 p6.c -lpigpio -lthread
+* gcc -Wall -o p7 p7.c -lpigpio -lthread
 * sudo ./p6
-* gcc -Wall -ggdb -o p6 p6.c -lpigpio -lthread
-* sudo gdb ./p6
+* gcc -Wall -ggdb -o p7 p7.c -lpigpio -lthread
+* sudo gdb ./p7
 */
 
 #define RF_en		6		// BCM GPIO
@@ -38,7 +36,7 @@
 #define running		1		//threadstatus
 #define kill		2		//threadstatus
 
-#define  Vref		2.44	// vref is common for adc & dac
+#define  Vref		2.5		// vref is common for adc & dac
 #define  dac_bits	65535
 #define  adc_bits	16777215
 
@@ -49,10 +47,14 @@
 #define  adc_test	4		// AIN4P
 #define  adc_spare	5		// AIN5P
 
-#define  cathode	0		// DAC0
-#define  einzel1	1		// DAC1
-#define  einzel2	2		// DAC2
-#define  dac_test	3		// DAC3 -- drives AIN4P
+#define  anode		0		// DAC0
+#define  e3bot		1		// DAC1
+#define  grid		2		// DAC2
+#define  e3top		3		// DAC3
+#define  cathode	4		// DAC4
+#define  e2			5		// DAC5
+#define  e1			6		// DAC6
+#define  dac_spare	7		// DAC7
 
 
 
@@ -97,9 +99,9 @@ typedef struct spi_control {
 	float DB[3];			// log amp voltages converted to DB
 
 	uint32_t dac_fd;
-	unsigned char dac_cmd[4];
-	float DAC[4];			// dac voltage desired
-	float GAIN[4];			// dac gain coefficient to get a 0-2.44v range
+	uint32_t dac_cmd[8];
+	float DAC[8];			// dac voltage desired (positive for anode, negative for cathode)
+	float GAIN[8];			// dac gain coefficient - see dac_init for details
 } spi_c;
 
 	spi_c spi;				// global structure!!
@@ -122,6 +124,7 @@ void dac_init( );
 void dac_write( );
 void dac_adc_Test( );
 void dac_Sweep(float start, float end, float dv, uint32_t dt, uint32_t channel, uint32_t num_pulses);
+
 
 void pll_Init( );
 void pll_write( uint32_t data );
@@ -157,6 +160,7 @@ uint32_t spiBaud=8000000;
 // MAX5134  DAC 30MHz
 // MAX11254 ADC  8MHz
 // PE43711  ATT 10MHz
+// AD5668	DAC 50MHz
 
 int x, rc1, rc2, count=0, n, ch;
 unsigned char c;
@@ -985,26 +989,47 @@ void adc_read( )
 ///////////////////////////////////////////
 void dac_init( )
 {
-	char buff[3];
+	char buff[4];
+/*
+ * opamp gain is set by ratio of feedback resistor to input resistor
+ *  510k/25.5k = 20
+ * Measure vout/vin for each opamp channel and edit "20" below
+ * 
+ * note anode and grid are positive supplies, rest are negative
+ * 
+ * 
+*/
+	spi.DAC[anode] 		= 0;
+	spi.GAIN[anode] 	= dac_bits /(20 * Vref);
+	spi.DAC[grid] 		= 0;
+	spi.GAIN[grid] 		= dac_bits /(20 * Vref);
+	spi.DAC[e1] 		= 0;
+	spi.GAIN[e1] 		= dac_bits /(-20 * Vref);
+	spi.DAC[e2] 		= 0;
+	spi.GAIN[e2] 		= dac_bits /(-20 * Vref);	
+	spi.DAC[e3top] 		= 0;
+	spi.GAIN[e3top] 	= dac_bits /(-20 * Vref);	
+	spi.DAC[e3bot] 		= 0;
+	spi.GAIN[e3bot] 	= dac_bits /(-20 * Vref);	
+	spi.DAC[cathode] 	= 0;
+	spi.GAIN[cathode] 	= dac_bits /(-20 * Vref);	
+	spi.DAC[dac_spare] 	= 0;
+	spi.GAIN[dac_spare] = dac_bits /(-20 * Vref);	
 
-	spi.DAC[cathode] = 0;		// init v=0 and default gain
-	spi.GAIN[cathode] = 1 /Vref * dac_bits;
-	spi.DAC[einzel1] = 0;
-	spi.GAIN[einzel1] = 1 /Vref * dac_bits;
-	spi.DAC[einzel2] = 0;
-	spi.GAIN[einzel2] = 1 /Vref * dac_bits;
-	spi.DAC[dac_test] = 0;
-	spi.GAIN[dac_test] = 1 /Vref * dac_bits;	
+	spi.dac_cmd[0] = 0x300000;		// inialize write thru command and address
+	spi.dac_cmd[1] = 0x310000;		// for DACs 0-7
+	spi.dac_cmd[2] = 0x320000;		// This value will be added to the 16bit data
+	spi.dac_cmd[3] = 0x330000;		// shifted left by 4
+	spi.dac_cmd[4] = 0x340000;
+	spi.dac_cmd[5] = 0x350000; 
+	spi.dac_cmd[6] = 0x360000;
+	spi.dac_cmd[7] = 0x370000;
 
-	spi.dac_cmd[0] = 0x31;		// inialize write thru command
-	spi.dac_cmd[1] = 0x32;		// for DACs 1-4
-	spi.dac_cmd[2] = 0x34;
-	spi.dac_cmd[3] = 0x38;
-
-	buff[0] = 0x02;				// software clear
+	buff[0] = 0x07;				// software reset
 	buff[1] = 0x00;
 	buff[2] = 0x00;
-	spiWrite(spi.dac_fd, buff, 3);
+	buff[3] = 0x00;
+	spiWrite(spi.dac_fd, buff, 4);
 
 	return;
 }
@@ -1018,22 +1043,41 @@ void dac_write( )
 //   J    0x11223344	integer & byte alignment
 //  CJ[]     3 2 1 0	
 	union equivs { uint32_t J; unsigned char CJ[4]; } eq;
-	char buff[3];
-	uint16_t v[4];
+	char buff[4];
+	uint16_t v[8];
 	int32_t n;
 
-	v[0] = spi.DAC[cathode] * spi.GAIN[cathode];
-	v[1] = spi.DAC[einzel1] * spi.GAIN[einzel1];
-	v[2] = spi.DAC[einzel2] * spi.GAIN[einzel2];
-	v[3] = spi.DAC[dac_test] * spi.GAIN[dac_test];
+/*
+ * all AD5668 DACs are limited to a positive 16bits
+ * dac_init accounts for positive and negative supplies
+ * 
+*/
+	v[0] = spi.DAC[anode] * spi.GAIN[anode];
+	if(v[0] > dac_bits) v[0] = dac_bits;
+	v[1] = spi.DAC[e3bot] * spi.GAIN[e3bot];
+	if(v[1] > dac_bits) v[1] = dac_bits;
+	v[2] = spi.DAC[grid] * spi.GAIN[grid];
+	if(v[2] > dac_bits) v[2] = dac_bits;
+	v[3] = spi.DAC[e3top] * spi.GAIN[e3top];
+	if(v[3] > dac_bits) v[3] = dac_bits;
+	v[4] = spi.DAC[cathode] * spi.GAIN[cathode];
+	if(v[4] > dac_bits) v[4] = dac_bits;
+	v[5] = spi.DAC[e2] * spi.GAIN[e2];
+	if(v[5] > dac_bits) v[5] = dac_bits;
+	v[6] = spi.DAC[e1] * spi.GAIN[e1];
+	if(v[6] > dac_bits) v[6] = dac_bits;
+	v[7] = spi.DAC[dac_spare] * spi.GAIN[dac_spare];
+	if(v[7] > dac_bits) v[7] = dac_bits;
 
-	for( n=0; n<4; n++) {
-		eq.J = v[n];
-		buff[0] = spi.dac_cmd[n];		// send command first
-		buff[1] = eq.CJ[1];
-		buff[2] = eq.CJ[0];
-//		fprintf( spi.fp, "buff= %x, %x, %x\n", buff[0], buff[1], buff[2] );
-		spiWrite(spi.dac_fd, buff, 3); 
+	for( n=0; n<8; n++) {
+		eq.J = spi.dac_cmd[n] + v[n];
+		eq.J = eq.J <<4;
+		buff[0] = eq.CJ[3];		// send command first
+		buff[1] = eq.CJ[2];
+		buff[2] = eq.CJ[1];
+		buff[3] = eq.CJ[0];
+		fprintf( spi.fp, "buff%x = %x, %x, %x, %x\n", n, buff[0], buff[1], buff[2], buff[3] );
+		spiWrite(spi.dac_fd, buff, 4); 
 //		usleep(100);
 	}
 	
@@ -1047,34 +1091,37 @@ void dac_adc_Test( )  {
 
 	while (spi.task_status != kill && count < 10) {
 //		count = count + 1;
-		
-		spi.DAC[cathode] = 0.0;
-		spi.DAC[einzel1] = 0.1;
-		spi.DAC[einzel2] = 0.2;
-		spi.DAC[dac_test] = 0.4;
+	
+		spi.DAC[anode] = 20;
+		spi.DAC[e3bot] = -1;
+		spi.DAC[grid] = 5;
+		spi.DAC[e3top] = 0.0;
+		spi.DAC[cathode] = -5;
+		spi.DAC[e2] = -17;
+		spi.DAC[e1] = 0.0;
+		spi.DAC[dac_spare] = -50;
 		dac_write( );
 		adc_read( );
 		fprintf( spi.fp, " %d, DAC=%.4f  ADC=%.4f\n", 
-		  count, spi.DAC[dac_test], spi.ADC[adc_test]);	
+		  count, spi.DAC[dac_spare], spi.ADC[adc_spare]);	
 		usleep(1000);
 
-		spi.DAC[cathode] = 2.44;
-		spi.DAC[einzel1] = 2.44;
-		spi.DAC[einzel2] = 2.44;
-		spi.DAC[dac_test] = 2.44;
+		spi.DAC[anode] = 0.0;
+		spi.DAC[e3bot] = 0.0;
+		spi.DAC[grid] = 0.0;
+		spi.DAC[e3top] = 0.0;
+		spi.DAC[cathode] = 0.0;
+		spi.DAC[e2] = 0.0;
+		spi.DAC[e1] = 0.0;
+		spi.DAC[dac_spare] = 0.0;
 		dac_write( );
 		adc_read( );
 		fprintf( spi.fp, " %d, DAC=%.4f  ADC=%.4f\n", 
-		  count, spi.DAC[dac_test], spi.ADC[adc_test]);	
+		  count, spi.DAC[dac_spare], spi.ADC[adc_spare]);	
 		usleep(1000);
 		
 	}
 							
-	spi.DAC[cathode] = 0;	//reset voltage = 0 and bail
-	spi.DAC[einzel1] = 0;
-	spi.DAC[einzel2] = 0;
-	spi.DAC[dac_test] = 0;
-	dac_write( );
 
 //	fprintf( fp, " S %d, AM=%.4f, FP=%.4f, RP=%.4f, SP=%.4f, TST=%.4f\n",  
 //	count, spi.ADC[ammeter],spi.ADC[forward],spi.ADC[reflected],
@@ -1106,7 +1153,7 @@ void dac_Sweep(float start, float end, float dv, uint32_t dt, uint32_t channel, 
 			usleep(dt);
 			spi.DAC[channel] = spi.DAC[channel] + dv;
 			fprintf( spi.fp, " %d, vin=%.4f  vout=%.4f\n", 
-				count, spi.DAC[dac_test], spi.ADC[adc_test]);	
+				count, spi.DAC[dac_spare], spi.ADC[adc_spare]);	
 		}
 		
 		while ( spi.DAC[channel] > start ) {
@@ -1116,13 +1163,14 @@ void dac_Sweep(float start, float end, float dv, uint32_t dt, uint32_t channel, 
 			usleep(dt);
 			spi.DAC[channel] = spi.DAC[channel] - dv;
 			fprintf( spi.fp, " %d, vin=%.4f  vout=%.4f\n", 
-				count, spi.DAC[dac_test], spi.ADC[adc_test]);	
+				count, spi.DAC[dac_spare], spi.ADC[adc_spare]);	
 		}
 	}
 
 	spi.DAC[channel] = 0.0;
 	return ;
 }
+
 
 ///////////////////////////////////////////
 void* logamp_Test( )
