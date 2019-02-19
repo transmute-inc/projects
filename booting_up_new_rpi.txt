@@ -27,23 +27,26 @@ the Raspberry Pi Forums ( http://www.raspberrypi.org/forums/ ) for support.
 	sudo make install  
 !!!-->	sudo chmod a+w /var/run/pigpio.pid              (otherwise, gpio will not init.) 
 
-4.1 Update and upgrade
+4.1 Update the OS		# www.raspberrypi.org/documentation/raspbian/
+	lsb_release -da			# current release
 	sudo apt-get update
-	sudo apt-get dist-upgrade
+	sudo apt-get upgrade
+	sudo apt-get dist-upgrade	# upgrade all installed packages
+	df -h				# check on space left sd card
+	sudo apt-get clean		# remove install files to free up space
+	sudo apt autoremove
+http://markjatboinc.blogspot.com/2017/09/add-stretch-backports-to-rpi.html
+
 
 5. Enable SPI and check /boot/overlays/README disable spi0 hardware chipselects
- (www.raspberrypi.org/documentation/configuration/device-tree.md) 
+ (www.raspberrypi.org/documentation/configuration/device-tree.md)  
+I was NOT ABLE to reassign the pins on SPI1.
+18,17, & 16 are the defaults.
 
 	sudo nano /boot/config.txt    uncomment (remove #) on 
-	dtparam=spi=on  				# enable SPI0
-	dtoverlay=spi1-3cs,cs0_pin=18,cs1_pin=17	# enable SPI1
+	dtparam=spi=on  					# enable SPI
+	dtoverlay=spi1-3cs,cs0_pin=18,cs1_pin=17,cs2_pin=16	# enable SPI1
 
-	
-
-	##### dtoverlay=spi1-3cs,cs0_pin=gpio16,cs1_pin=gpio26,cs2_pin=gpio13 # enable SPI1 & set CS pins
-	170907 - I oculd not get this to work, so modify the PCB.
-	RLY_1 moved from p1-11 to p1-7 (gpio17->gpio04)
-	RLY_2 moved from pp1-12 -> p1-15 (gpio18->gpio27)
 
 6. Serial port   https://spellfoundry.com/2016/05/29/configuring-gpio-serial-port-raspbian-jessie-including-pi-3/
 6.1 Continue editing /boot/config.txt to enable the serial port
@@ -90,24 +93,14 @@ Current status of 32G micro SD cards (180410)
 	#B  16g 2.7.0 180410 Bob	# 32g takes too long to image, so 16g is just right!
 	#C  16g backup of #A
 	
-8. Update the OS		# www.raspberrypi.org/documentation/raspbian/
-	lsb_release -da			# current release
-	sudo apt-get update
-	sudo apt-get upgrade
-	sudo apt-get dist-upgrade	# upgrade all installed packages
-	df -h				# check on space left sd card
-	sudo apt-get clean		# remove install files to free up space
-	sudo apt autoremove
-http://markjatboinc.blogspot.com/2017/09/add-stretch-backports-to-rpi.html
 
-
-9. Text editors can be run from command window.
+8. Text editors can be run from command window.
 	leafpad  		# like notepad, default on file browser
 	nano			# quick and dirty 
 	vi			# (Vim 8.0)    
 
 
-8. Link to dropbox uploader 	# work in progress - I do not have this working yet.
+9. Link to dropbox uploader 	# work in progress - I do not have this working yet.
 	https://www.raspberrypi.org/magpi/dropbox-raspberry-pi/
 	github.com/andreafabrizi/Dropbox-Uploader.git
 	./dropbox_uploader.sh

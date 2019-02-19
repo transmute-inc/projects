@@ -1,0 +1,49 @@
+projects/P7/Board_power_up_test_procedure.txt
+
+Smoke test
+	1. Apply power with a current limited power supply
+	2. Check +12v, +5VA, +3V3, +5V_RF, +50VA, -50VA, -4V
+
+GPIO test
+	1. sudo ./p7  wg	will cycle RLY1-4 
+
+Serial test
+	1. short P7-1 -> P7-2 on GAUGE connector
+	2. sudo ./p7 ws
+	3. leafpad spi.dat     check that string is copied in to out.
+
+Check Vref = 2.5v
+	1. sudo ./p7 w	 	runs the spi_thread and inits DAC
+	2. check U16-p6 with voltmeter
+
+Chip enable test
+	1. SPI1 chip selects are set in /boot/config.txt 
+	dtoverlay=spi1-3cs,cs0_pin=gpio18,cs1_pin=gpio17,cs2_pin=gpio13
+	2. sudo ./p7 wc
+	3. check each on O'scope
+		SPI0	AD_CS	gpio24	T11
+        	SPI0	DAC_CS	gpio26	T12
+
+		SPI1	ATT1_CS gpio18
+		SPI1	PLL_CS  gpio17
+        	SPI1	ATT2_CS gpio13
+
+        	SYNC    gpio04    T26
+ 
+DAC & ADC test	
+	1. Edit if necessary routine dac_adc_test and set DAC registers:
+		spi.DAC[anode] = 10;		outputs 0.5v
+		spi.DAC[e3bot] = -10;		outputs 0.5v
+		spi.DAC[grid] = 50;		outputs 2.5v
+		spi.DAC[e3top] = -20;		outputs 1.0v
+		spi.DAC[cathode] = -50;		outputs 2.5v
+		spi.DAC[e2] = -30;		outputs 1.5v
+		spi.DAC[e1] = -40;		outputs 2.0v
+		spi.DAC[dac_spare] = -10;	outputs 0.5v
+	2. sudo ./p7 wa
+	3. check the DAC outputs - 
+	4. leafpad spi.dat - check the DAC chan7 & acd 5. They are tied together.
+
+
+
+	

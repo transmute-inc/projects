@@ -26,17 +26,19 @@
 */
 
 #define RF_en		6		// BCM GPIO
-#define H2_in		4		// RLY_1 moved from p1-11 -> p1-7
-#define H2_out		22		// RLY_2 moved from p1-12 -> p1-15
-#define Vac			27
-#define Vac_pump	23
-#define att_cs		18		// needed to toggle pe43711 data into latch
+#define Sync_pin	4		// usefull to sync oscope
+#define H2_in		27		// RLY_1
+#define H2_out		22		// RLY_2 
+#define Vac			23		// RLY_3
+#define Vac_pump	24		// RLY_4
+#define att1_cs		18		// needed to toggle pe43711 data into latch
+#define att2_cs		13		// needed to toggle pe43711 data into latch
 
 #define not_running	0		//threadstatus
 #define running		1		//threadstatus
 #define kill		2		//threadstatus
 
-#define  Vref		2.5		// vref is common for adc & dac
+#define  Vref		2.38	// vref is common for adc & dac
 #define  dac_bits	65535
 #define  adc_bits	16777215
 
@@ -89,7 +91,8 @@ typedef struct spi_control {
 	float sw_d_forward[1000];
 	float sw_d_reflected[1000];
 
-	uint32_t att_fd;
+	uint32_t att1_fd;
+	uint32_t att2_fd;
 	float attenuation;		// in dB
 
 	uint32_t adc_fd;
@@ -186,13 +189,15 @@ int main(void)
  	gpioSetMode(Vac, PI_OUTPUT); 
  	gpioSetMode(Vac_pump, PI_OUTPUT);
   	gpioSetMode(RF_en, PI_OUTPUT);
-
+  	gpioSetMode(Sync_pin, PI_OUTPUT);
+  	
 	serial_gage_init( );
 
-	spi.adc_fd = spiOpen(0, spiBaud, 0);	//CE0   08   24	 T11	
-	spi.dac_fd = spiOpen(1, spiBaud, 0);	//CE1   07   26  T12
-	spi.att_fd = spiOpen(0, spiBaud, 256);	//ce0   18   12	(p1-37->p1-12) 
-	spi.pll_fd = spiOpen(1, spiBaud, 256);	//ce1   17   11	(p1-36->p1-11)
+	spi.adc_fd =  spiOpen(0, spiBaud, 0);	//CE0   08   24	 T11	
+	spi.dac_fd =  spiOpen(1, spiBaud, 0);	//CE1   07   26  T12
+	spi.att1_fd = spiOpen(0, spiBaud, 256);	//ce0   18   12
+	spi.pll_fd =  spiOpen(1, spiBaud, 256);	//ce1   17   11
+	spi.att2_fd = spiOpen(2, spiBaud, 256);	//ce2   13   33
 
 
     pthread_t *thread_s, *thread_v;		
@@ -776,11 +781,16 @@ int* ce_Test( )
 		usleep(20);
 		spiXfer(spi.adc_fd, buff, buff_rx, 1);
 		usleep(20);
+		spiWrite(spi.att1_fd, buff, 1);
+		usleep(20);
 		spiWrite(spi.pll_fd, buff, 1);
 		usleep(20);
-		spiWrite(spi.att_fd, buff, 1);
+		spiWrite(spi.att2_fd, buff, 1);
+		usleep(20);	
+		gpioWrite(Sync_pin, 1);
 		usleep(20);
-	}
+		gpioWrite(Sync_pin, 0);
+		usleep(20);	}
 	return 0;
 }
 
@@ -796,7 +806,8 @@ void att_Set( float atten )
 	if(atten > 31.75) atten = 31.75;
 	eq.J = (int) (atten*4);				// attenuation in quarter dB steps
 	buff[0] = eq.CJ[0];
-	spiWrite(spi.att_fd, buff, 1);
+	spiWrite(spi.att1_fd, buff, 1);
+	spiWrite(spi.att2_fd, buff, 1);
 
 	return;
 }
@@ -960,7 +971,7 @@ void adc_read( )
 	buff[0] = 0xbe;					// Convert! (6400sps)
 	spiWrite(spi.adc_fd, buff, 1);
 	usleep(500); 			
-	num_channels = 5;											//TEMP!!!!! 5->1
+	num_channels = 6;											//TEMP!!!!! 5->1
 	for ( n=0; n<num_channels; n++) {
 		
 		buff[0] = spi.adc_reg[n];	//select a channel to read
@@ -1000,30 +1011,30 @@ void dac_init( )
  * 
 */
 	spi.DAC[anode] 		= 0;
-	spi.GAIN[anode] 	= dac_bits /(20 * Vref);
+	spi.GAIN[anode] 	= dac_bits  / 50;
 	spi.DAC[grid] 		= 0;
-	spi.GAIN[grid] 		= dac_bits /(20 * Vref);
+	spi.GAIN[grid] 		= dac_bits  / 50;
 	spi.DAC[e1] 		= 0;
-	spi.GAIN[e1] 		= dac_bits /(-20 * Vref);
+	spi.GAIN[e1] 		= dac_bits  / -50;
 	spi.DAC[e2] 		= 0;
-	spi.GAIN[e2] 		= dac_bits /(-20 * Vref);	
+	spi.GAIN[e2] 		= dac_bits  / -50;	
 	spi.DAC[e3top] 		= 0;
-	spi.GAIN[e3top] 	= dac_bits /(-20 * Vref);	
+	spi.GAIN[e3top] 	= dac_bits  / -50;	
 	spi.DAC[e3bot] 		= 0;
-	spi.GAIN[e3bot] 	= dac_bits /(-20 * Vref);	
+	spi.GAIN[e3bot] 	= dac_bits  / -50;	
 	spi.DAC[cathode] 	= 0;
-	spi.GAIN[cathode] 	= dac_bits /(-20 * Vref);	
+	spi.GAIN[cathode] 	= dac_bits  / -50;	
 	spi.DAC[dac_spare] 	= 0;
-	spi.GAIN[dac_spare] = dac_bits /(-20 * Vref);	
+	spi.GAIN[dac_spare] = dac_bits  / -50;	
 
-	spi.dac_cmd[0] = 0x300000;		// inialize write thru command and address
-	spi.dac_cmd[1] = 0x310000;		// for DACs 0-7
-	spi.dac_cmd[2] = 0x320000;		// This value will be added to the 16bit data
-	spi.dac_cmd[3] = 0x330000;		// shifted left by 4
-	spi.dac_cmd[4] = 0x340000;
-	spi.dac_cmd[5] = 0x350000; 
-	spi.dac_cmd[6] = 0x360000;
-	spi.dac_cmd[7] = 0x370000;
+	spi.dac_cmd[0] = 0x200000;		// inialize write thru command and address
+	spi.dac_cmd[1] = 0x210000;		// for DACs 0-7
+	spi.dac_cmd[2] = 0x220000;		// This value will be added to the 16bit data
+	spi.dac_cmd[3] = 0x230000;		// shifted left by 4
+	spi.dac_cmd[4] = 0x240000;
+	spi.dac_cmd[5] = 0x250000; 
+	spi.dac_cmd[6] = 0x260000;
+	spi.dac_cmd[7] = 0x270000;
 
 	buff[0] = 0x07;				// software reset
 	buff[1] = 0x00;
@@ -1031,6 +1042,12 @@ void dac_init( )
 	buff[3] = 0x00;
 	spiWrite(spi.dac_fd, buff, 4);
 
+/*	buff[0] = 0x06;				// Override LDAC/ pin 
+	buff[1] = 0x00;
+	buff[2] = 0x00;
+	buff[3] = 0x0f;
+	spiWrite(spi.dac_fd, buff, 4);
+*/	
 	return;
 }
 
@@ -1076,7 +1093,7 @@ void dac_write( )
 		buff[1] = eq.CJ[2];
 		buff[2] = eq.CJ[1];
 		buff[3] = eq.CJ[0];
-		fprintf( spi.fp, "buff%x = %x, %x, %x, %x\n", n, buff[0], buff[1], buff[2], buff[3] );
+		fprintf( spi.fp, "chan%x = %x, %x, %x, %x, %x\n", n, v[n], buff[0], buff[1], buff[2], buff[3] );
 		spiWrite(spi.dac_fd, buff, 4); 
 //		usleep(100);
 	}
@@ -1092,19 +1109,21 @@ void dac_adc_Test( )  {
 	while (spi.task_status != kill && count < 10) {
 //		count = count + 1;
 	
-		spi.DAC[anode] = 20;
-		spi.DAC[e3bot] = -1;
-		spi.DAC[grid] = 5;
-		spi.DAC[e3top] = 0.0;
-		spi.DAC[cathode] = -5;
-		spi.DAC[e2] = -17;
-		spi.DAC[e1] = 0.0;
-		spi.DAC[dac_spare] = -50;
+		spi.DAC[anode] = 10;
+		spi.DAC[e3bot] = -10;
+		spi.DAC[grid] = 50;
+		spi.DAC[e3top] = -20;
+		spi.DAC[cathode] = -50;
+		spi.DAC[e2] = -30;
+		spi.DAC[e1] = -40;
+		spi.DAC[dac_spare] = -10;
 		dac_write( );
+		gpioWrite(Sync_pin, 1);
+
 		adc_read( );
 		fprintf( spi.fp, " %d, DAC=%.4f  ADC=%.4f\n", 
 		  count, spi.DAC[dac_spare], spi.ADC[adc_spare]);	
-		usleep(1000);
+		usleep(5000000);
 
 		spi.DAC[anode] = 0.0;
 		spi.DAC[e3bot] = 0.0;
@@ -1115,10 +1134,12 @@ void dac_adc_Test( )  {
 		spi.DAC[e1] = 0.0;
 		spi.DAC[dac_spare] = 0.0;
 		dac_write( );
+		gpioWrite(Sync_pin, 0);
+
 		adc_read( );
 		fprintf( spi.fp, " %d, DAC=%.4f  ADC=%.4f\n", 
 		  count, spi.DAC[dac_spare], spi.ADC[adc_spare]);	
-		usleep(1000);
+		usleep(5000000);
 		
 	}
 							
