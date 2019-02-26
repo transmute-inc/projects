@@ -49,14 +49,14 @@
 #define  adc_test	4		// AIN4P
 #define  adc_spare	5		// AIN5P
 
-#define  anode		0		// DAC0
-#define  e3bot		1		// DAC1
-#define  grid		2		// DAC2
-#define  e3top		3		// DAC3
-#define  cathode	4		// DAC4
-#define  e2			5		// DAC5
-#define  e1			6		// DAC6
-#define  dac_spare	7		// DAC7
+int32_t  anode		=0;		// DAC0
+int32_t  e3bot		=1;		// DAC1
+int32_t  grid		=2;		// DAC2
+int32_t  e3top		=3;		// DAC3
+int32_t  cathode	=4;		// DAC4
+int32_t  e2			=5;		// DAC5
+int32_t  e1			=6;		// DAC6
+int32_t  dac_spare	=7;		// DAC7
 
 
 
@@ -126,7 +126,7 @@ void att_Sweep(float start, float end, float df, uint32_t dt);
 void dac_init( );
 void dac_write( );
 void dac_adc_Test( );
-void dac_Sweep(float start, float end, float dv, uint32_t dt, uint32_t channel, uint32_t num_pulses);
+void dac_Sweep(float start, float end, float dv, int32_t dt, int32_t channel, int32_t num_pulses);
 
 
 void pll_Init( );
@@ -338,7 +338,7 @@ void *_spi_thread( void *ss )
 		else if(spi.cmd=='s'){spi.cmd=0;serial_test( ); }	//serial i/o test
 		else if(spi.cmd=='t'){spi.cmd=0;att_Test( ); }		//just sets the PE43711 attenuator
 		else if(spi.cmd=='l'){spi.cmd=0;logamp_Test( ); }	//reads voltages on logamps
-		else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0.0, 2.44, 0.1, 10000, cathode,10);}
+		else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0, 10, 1, 10000, dac_spare,1000);}
 		else if(spi.cmd=='p'){spi.cmd=0;pll_Test( ); }
 		else if(spi.cmd=='f'){spi.cmd=0;find_resonance( 100, 200, 5, 1000);}
 
@@ -485,11 +485,11 @@ void pll_Test( ){
 	while(loop < 20 && spi.task_status != kill) {
 //		loop++;
 			
-		gpioWrite (H2_in,  0);			// use gpio4 as a sync for the o´scope
+		gpioWrite (Sync_pin,  1);		// use gpio4 as a sync for the o´scope
 		pll_SetIntfreq( 30 );			
 		usleep(1000) ;
 
-		gpioWrite (H2_in, 1);		
+		gpioWrite (Sync_pin, 0);		
 		pll_SetIntfreq( 50 );			
 		usleep(1000) ;
 	}
@@ -1025,7 +1025,7 @@ void dac_init( )
 	spi.DAC[cathode] 	= 0;
 	spi.GAIN[cathode] 	= dac_bits  / -50;	
 	spi.DAC[dac_spare] 	= 0;
-	spi.GAIN[dac_spare] = dac_bits  / -50;	
+	spi.GAIN[dac_spare] = dac_bits  / 50;	
 
 	spi.dac_cmd[0] = 0x200000;		// inialize write thru command and address
 	spi.dac_cmd[1] = 0x210000;		// for DACs 0-7
@@ -1123,7 +1123,7 @@ void dac_adc_Test( )  {
 		adc_read( );
 		fprintf( spi.fp, " %d, DAC=%.4f  ADC=%.4f\n", 
 		  count, spi.DAC[dac_spare], spi.ADC[adc_spare]);	
-		usleep(5000000);
+		usleep(5000);
 
 		spi.DAC[anode] = 0.0;
 		spi.DAC[e3bot] = 0.0;
@@ -1139,7 +1139,7 @@ void dac_adc_Test( )  {
 		adc_read( );
 		fprintf( spi.fp, " %d, DAC=%.4f  ADC=%.4f\n", 
 		  count, spi.DAC[dac_spare], spi.ADC[adc_spare]);	
-		usleep(5000000);
+		usleep(5000);
 		
 	}
 							
@@ -1152,11 +1152,11 @@ void dac_adc_Test( )  {
 }
 
 ///////////////////////////////////////////
-void dac_Sweep(float start, float end, float dv, uint32_t dt, uint32_t channel, uint32_t num_pulses){
-	int32_t count;
+void dac_Sweep(float start, float end, float dv, int32_t dt, int32_t channel, int32_t num_pulses){
+	int32_t count, n;
 
 /* start, dv, end in dbm,   dt in usec
- * calling routine passes a voltage (0-2.44v) on one of the four dac channels  
+ * calling routine passes a voltage (0-2.44v) on one of the eight dac channels  
  * such as spi.DAC[cathode], spi.DAC[einzel1], spi.DAC[einzel2], or spi.DAC[dac_test_gain].
  * dac_write writes out all four channels. In the future, the DAC and ADC will 
  * just cycle continuously on a 1msec heartbeat so the dac_write and adc_read 
@@ -1164,27 +1164,33 @@ void dac_Sweep(float start, float end, float dv, uint32_t dt, uint32_t channel, 
 */
 
 	count = 0;
-	spi.DAC[channel] = start;			
+	n=0;	
+	spi.DAC[channel] = start; //start;
+
 
 	while ( count < num_pulses && spi.task_status != kill) {
 		while ( spi.DAC[channel] < end ) {			//sweep up
-			count = count + 1;
+//			count = count + 1;
+			gpioWrite (Sync_pin,  n);		// use gpio4 as a sync for the o´scope
+			if(n == 0){n=1;}else{n=0;}		
 			dac_write( );
 			adc_read( );
-			usleep(dt);
+			usleep(dt);	
+			fprintf( spi.fp, " %d, channel=%d, vin=%.4f  vout=%.4f\n", 
+				count, channel, spi.DAC[channel], spi.ADC[adc_spare]);	
 			spi.DAC[channel] = spi.DAC[channel] + dv;
-			fprintf( spi.fp, " %d, vin=%.4f  vout=%.4f\n", 
-				count, spi.DAC[dac_spare], spi.ADC[adc_spare]);	
 		}
 		
-		while ( spi.DAC[channel] > start ) {
-			count = count + 1;
+		while ( spi.DAC[channel] > start ) {			//sweep down
+//			count = count + 1;
+			gpioWrite (Sync_pin,  n);		// use gpio4 as a sync for the o´scope
+			if(n == 0){n=1;}else{n=0;}
 			dac_write( );
 			adc_read( );
 			usleep(dt);
+			fprintf( spi.fp, " %d, channel=%d, vin=%.4f  vout=%.4f\n", 
+				count, channel, spi.DAC[channel], spi.ADC[adc_spare]);	
 			spi.DAC[channel] = spi.DAC[channel] - dv;
-			fprintf( spi.fp, " %d, vin=%.4f  vout=%.4f\n", 
-				count, spi.DAC[dac_spare], spi.ADC[adc_spare]);	
 		}
 	}
 
@@ -1468,7 +1474,7 @@ int help_s_menu() {
 	"wt = att_Test - sets pll=100mhz & ramps PE43711 from 0to -31.75 db (spi.dat)\n"
 	"               insert -30db attenuator between RF-OUT & FORWARD ports\n"
 	"wl = logamp_Test - reads logamp voltage (spi.dat)\n"
-	"wd = dac_Sweep( 0.0, 2.44, 0.1, 10000, dac_test,10)\n"
+	"wd = dac_Sweep( V0, V1, dV, dT, channel,numpulses)\n"
 	"wp = pll_test\n"
 	"wf = find_resonance( 100, 200, 5, 1000)\n"
 	"wq = exit spi task\n");
