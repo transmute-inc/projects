@@ -38,7 +38,7 @@
 #define running		1		//threadstatus
 #define kill		2		//threadstatus
 
-#define  Vref		2.38	// vref is common for adc & dac
+#define  Vref		2.42	// vref is common for adc & dac
 #define  dac_bits	65535
 #define  adc_bits	16777215
 
@@ -98,6 +98,7 @@ typedef struct spi_control {
 	uint32_t adc_fd;
 	unsigned char adc_reg[6];
 	unsigned char adc_status[4];
+	char adc_names[6][8];
 	float ADC[6];			// adc voltage values
 	float DB[3];			// log amp voltages converted to DB
 
@@ -105,6 +106,7 @@ typedef struct spi_control {
 	uint32_t dac_cmd[8];
 	float DAC[8];			// dac voltage desired (positive for anode, negative for cathode)
 	float GAIN[8];			// dac gain coefficient - see dac_init for details
+	char dac_names[8][8];
 } spi_c;
 
 	spi_c spi;				// global structure!!
@@ -199,6 +201,24 @@ int main(void)
 	spi.pll_fd =  spiOpen(1, spiBaud, 256);	//ce1   17   11
 	spi.att2_fd = spiOpen(2, spiBaud, 256);	//ce2   13   33
 
+	strcpy(spi.adc_names[0],"forward");
+	strcpy(spi.adc_names[1],"reverse");
+	strcpy(spi.adc_names[2],"ammeter");
+	strcpy(spi.adc_names[3],"spare");
+	strcpy(spi.adc_names[4],"spare");
+	strcpy(spi.adc_names[5],"dactest");
+	
+	strcpy(spi.dac_names[0],"anode");
+	strcpy(spi.dac_names[1],"e3bot");
+	strcpy(spi.dac_names[2],"grid");
+	strcpy(spi.dac_names[3],"e3top");
+	strcpy(spi.dac_names[4],"cathode");
+	strcpy(spi.dac_names[5],"e2");
+	strcpy(spi.dac_names[6],"e1");
+	strcpy(spi.dac_names[7],"dacspare");
+	
+
+//	char adc_names[6][8] = {"forward ", "reverse ", "ammeter ", "spare   ", "spare   ", "dac_test"};
 
     pthread_t *thread_s, *thread_v;		
 
@@ -889,7 +909,7 @@ void adc_init_mode1( )
 	spiWrite(spi.adc_fd, buff, 2);
 	usleep(1000); 	
 
-	buff[0] = 0xbe;		// Convert at 6400sps
+	buff[0] = 0xfe;		// Convert at 6400sps
 	spiWrite(spi.adc_fd, buff, 1);
 	usleep(100000); 			
 }
@@ -899,12 +919,12 @@ void adc_init_mode2( )
 {
 	char buff[4];
 
-	spi.adc_reg[0] = 0xdd;
-	spi.adc_reg[1] = 0xdf;
-	spi.adc_reg[2] = 0xe1;
-	spi.adc_reg[3] = 0xe3;
-	spi.adc_reg[4] = 0xe5;
-	spi.adc_reg[5] = 0xe7;
+	spi.adc_reg[0] = 0xdd;  // Channel 0 (14) read
+	spi.adc_reg[1] = 0xdf;  // Channel 1 (15) read
+	spi.adc_reg[2] = 0xe1;  // Channel 2 (16) read
+	spi.adc_reg[3] = 0xe3;  // Channel 3 (17) read
+	spi.adc_reg[4] = 0xe5;  // Channel 4 (18) read
+	spi.adc_reg[5] = 0xe7;  // Channel 5 (19) read
 
 /*CTL1 =C2                   2    E
  * perform self calibration	00
@@ -915,12 +935,13 @@ void adc_init_mode2( )
  * Contsc = single cycle           0  */
 	buff[0] = 0xc2;		// CTRL1
 	buff[1] = 0x2e;		// CTRL1 data
+//	buff[1] = 0x2f;		// CTRL1 data
 	spiWrite(spi.adc_fd, buff, 2);
 	usleep(100); 
 
-/*SEQ = D0					0    a
+/*SEQ = D0					0    A
  * mux=0 					000
- * mode=2					   0 1
+ * mode=1					   0 1
  * gpodren=0				      0
  * mdren=1					       1
  * rdyben=0					        0
@@ -930,7 +951,7 @@ void adc_init_mode2( )
 	spiWrite(spi.adc_fd, buff, 2);
 		
 	buff[0] = 0xca;		// DELAY
-	buff[1] = 0xf0;		// 
+	buff[1] = 0x00;		//    origianl = f0
 	buff[2] = 0x00;
 	spiWrite(spi.adc_fd, buff, 3);
 			
@@ -970,7 +991,7 @@ void adc_read( )
  * sample rate=64000sps		    1110  */
 	buff[0] = 0xbe;					// Convert! (6400sps)
 	spiWrite(spi.adc_fd, buff, 1);
-	usleep(500); 			
+	usleep(100); 			 			
 	num_channels = 6;											//TEMP!!!!! 5->1
 	for ( n=0; n<num_channels; n++) {
 		
@@ -981,7 +1002,9 @@ void adc_read( )
 		eq.CJ[2] = buff_rx[1];
 		eq.CJ[3] = buff_rx[0];
 		spi.ADC[n] = (float) eq.J / adc_bits * Vref;
-		fprintf( spi.fp, " acd %d, = %0x,  %.4f\n",  n, eq.J, spi.ADC[n]);
+		fprintf( spi.fp, " adc<- %s = %.4f\n",  spi.adc_names[n], spi.ADC[n]);
+		usleep(100); 			
+
 	}
 	
 	
@@ -1025,7 +1048,7 @@ void dac_init( )
 	spi.DAC[cathode] 	= 0;
 	spi.GAIN[cathode] 	= dac_bits  / -50;	
 	spi.DAC[dac_spare] 	= 0;
-	spi.GAIN[dac_spare] = dac_bits  / 50;	
+	spi.GAIN[dac_spare] = dac_bits  / Vref;	
 
 	spi.dac_cmd[0] = 0x200000;		// inialize write thru command and address
 	spi.dac_cmd[1] = 0x210000;		// for DACs 0-7
@@ -1069,22 +1092,23 @@ void dac_write( )
  * dac_init accounts for positive and negative supplies
  * 
 */
-	v[0] = spi.DAC[anode] * spi.GAIN[anode];
+	v[0] = abs(spi.DAC[anode] * spi.GAIN[anode]);
 	if(v[0] > dac_bits) v[0] = dac_bits;
-	v[1] = spi.DAC[e3bot] * spi.GAIN[e3bot];
+	v[1] = abs(spi.DAC[e3bot] * spi.GAIN[e3bot]);
 	if(v[1] > dac_bits) v[1] = dac_bits;
-	v[2] = spi.DAC[grid] * spi.GAIN[grid];
+	v[2] = abs(spi.DAC[grid] * spi.GAIN[grid]);
 	if(v[2] > dac_bits) v[2] = dac_bits;
-	v[3] = spi.DAC[e3top] * spi.GAIN[e3top];
+	v[3] = abs(spi.DAC[e3top] * spi.GAIN[e3top]);
 	if(v[3] > dac_bits) v[3] = dac_bits;
-	v[4] = spi.DAC[cathode] * spi.GAIN[cathode];
+	v[4] = abs(spi.DAC[cathode] * spi.GAIN[cathode]);
 	if(v[4] > dac_bits) v[4] = dac_bits;
-	v[5] = spi.DAC[e2] * spi.GAIN[e2];
+	v[5] = abs(spi.DAC[e2] * spi.GAIN[e2]);
 	if(v[5] > dac_bits) v[5] = dac_bits;
-	v[6] = spi.DAC[e1] * spi.GAIN[e1];
+	v[6] = abs(spi.DAC[e1] * spi.GAIN[e1]);
 	if(v[6] > dac_bits) v[6] = dac_bits;
-	v[7] = spi.DAC[dac_spare] * spi.GAIN[dac_spare];
+	v[7] = abs(spi.DAC[dac_spare] * spi.GAIN[dac_spare]);
 	if(v[7] > dac_bits) v[7] = dac_bits;
+//	fprintf( spi.fp, " v= %x, DAC=%.4f, GAIN=%.4f\n", v[7], spi.DAC[dac_spare], spi.GAIN[dac_spare] );
 
 	for( n=0; n<8; n++) {
 		eq.J = spi.dac_cmd[n] + v[n];
@@ -1093,10 +1117,13 @@ void dac_write( )
 		buff[1] = eq.CJ[2];
 		buff[2] = eq.CJ[1];
 		buff[3] = eq.CJ[0];
-		fprintf( spi.fp, "chan%x = %x, %x, %x, %x, %x\n", n, v[n], buff[0], buff[1], buff[2], buff[3] );
+		fprintf( spi.fp, " dac ->%s = %.4f\n",  spi.dac_names[n], spi.DAC[n] ) ;
+
+//		fprintf( spi.fp, "chan%x = %x, %x, %x, %x, %x\n", n, v[n], buff[0], buff[1], buff[2], buff[3] );
 		spiWrite(spi.dac_fd, buff, 4); 
 //		usleep(100);
 	}
+		fprintf( spi.fp, " dac -------------------\n");
 	
 	return;
 }
@@ -1107,21 +1134,21 @@ void dac_adc_Test( )  {
 	count = 0;
 
 	while (spi.task_status != kill && count < 10) {
-//		count = count + 1;
+		count = count + 1;
 	
-		spi.DAC[anode] = 10;
-		spi.DAC[e3bot] = -10;
+		spi.DAC[anode] = 50;
+		spi.DAC[e3bot] = -50;
 		spi.DAC[grid] = 50;
-		spi.DAC[e3top] = -20;
+		spi.DAC[e3top] = -50;
 		spi.DAC[cathode] = -50;
-		spi.DAC[e2] = -30;
-		spi.DAC[e1] = -40;
-		spi.DAC[dac_spare] = -10;
+		spi.DAC[e2] = -50;
+		spi.DAC[e1] = -50;
+		spi.DAC[dac_spare] = Vref;
 		dac_write( );
 		gpioWrite(Sync_pin, 1);
 
 		adc_read( );
-		fprintf( spi.fp, " %d, DAC=%.4f  ADC=%.4f\n", 
+		fprintf( spi.fp, "              %d, DAC=%.4f  ADC=%.4f\n", 
 		  count, spi.DAC[dac_spare], spi.ADC[adc_spare]);	
 		usleep(5000);
 
@@ -1137,7 +1164,7 @@ void dac_adc_Test( )  {
 		gpioWrite(Sync_pin, 0);
 
 		adc_read( );
-		fprintf( spi.fp, " %d, DAC=%.4f  ADC=%.4f\n", 
+		fprintf( spi.fp, "                        %d, DAC=%.4f  ADC=%.4f\n", 
 		  count, spi.DAC[dac_spare], spi.ADC[adc_spare]);	
 		usleep(5000);
 		
