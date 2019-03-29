@@ -1,18 +1,18 @@
  PLL reg0-5 = 80a00000, 103e9, 10005f42, 1f23, 63de80fc, 400005
  dac ->anode = 50.0000
- dac ->e3bot = -50.0000
+ dac ->e3bot = -20.0000
  dac ->grid = 50.0000
- dac ->e3top = -50.0000
+ dac ->e3top = -40.0000
  dac ->cathode = -50.0000
  dac ->e2 = -50.0000
  dac ->e1 = -50.0000
  dac ->dacspare = 2.4200
  dac -------------------
- adc<- forward = 0.7152
- adc<- reverse = 0.5190
+ adc<- forward = 0.7205
+ adc<- reverse = 0.5213
  adc<- ammeter = 2.4200
  adc<- spare = 0.0047
- adc<- spare = 0.0044
+ adc<- spare = 0.0045
  adc<- dactest = 2.4200
               1, DAC=2.4200  ADC=2.4200
  dac ->anode = 0.0000
@@ -24,27 +24,27 @@
  dac ->e1 = 0.0000
  dac ->dacspare = 0.0000
  dac -------------------
- adc<- forward = 0.7154
- adc<- reverse = 0.5186
+ adc<- forward = 0.7200
+ adc<- reverse = 0.5259
  adc<- ammeter = 2.4200
- adc<- spare = 0.0047
- adc<- spare = 0.0045
+ adc<- spare = 0.0046
+ adc<- spare = 0.0044
  adc<- dactest = 0.0034
                         1, DAC=0.0000  ADC=0.0034
  dac ->anode = 50.0000
- dac ->e3bot = -50.0000
+ dac ->e3bot = -20.0000
  dac ->grid = 50.0000
- dac ->e3top = -50.0000
+ dac ->e3top = -40.0000
  dac ->cathode = -50.0000
  dac ->e2 = -50.0000
  dac ->e1 = -50.0000
  dac ->dacspare = 2.4200
  dac -------------------
- adc<- forward = 0.7157
- adc<- reverse = 0.5185
+ adc<- forward = 0.7164
+ adc<- reverse = 0.5259
  adc<- ammeter = 2.4200
  adc<- spare = 0.0047
- adc<- spare = 0.0044
+ adc<- spare = 0.0045
  adc<- dactest = 2.4200
               2, DAC=2.4200  ADC=2.4200
  dac ->anode = 0.0000
@@ -56,24 +56,24 @@
  dac ->e1 = 0.0000
  dac ->dacspare = 0.0000
  dac -------------------
- adc<- forward = 0.7159
- adc<- reverse = 0.5185
+ adc<- forward = 0.7146
+ adc<- reverse = 0.5181
  adc<- ammeter = 2.4200
  adc<- spare = 0.0046
  adc<- spare = 0.0044
  adc<- dactest = 0.0034
                         2, DAC=0.0000  ADC=0.0034
  dac ->anode = 50.0000
- dac ->e3bot = -50.0000
+ dac ->e3bot = -20.0000
  dac ->grid = 50.0000
- dac ->e3top = -50.0000
+ dac ->e3top = -40.0000
  dac ->cathode = -50.0000
  dac ->e2 = -50.0000
  dac ->e1 = -50.0000
  dac ->dacspare = 2.4200
  dac -------------------
- adc<- forward = 0.7160
- adc<- reverse = 0.5181
+ adc<- forward = 0.7134
+ adc<- reverse = 0.5175
  adc<- ammeter = 2.4200
  adc<- spare = 0.0047
  adc<- spare = 0.0044
@@ -88,24 +88,24 @@
  dac ->e1 = 0.0000
  dac ->dacspare = 0.0000
  dac -------------------
- adc<- forward = 0.7150
- adc<- reverse = 0.5181
+ adc<- forward = 0.7133
+ adc<- reverse = 0.5168
  adc<- ammeter = 2.4200
- adc<- spare = 0.0047
+ adc<- spare = 0.0046
  adc<- spare = 0.0044
  adc<- dactest = 0.0034
                         3, DAC=0.0000  ADC=0.0034
  dac ->anode = 50.0000
- dac ->e3bot = -50.0000
+ dac ->e3bot = -20.0000
  dac ->grid = 50.0000
- dac ->e3top = -50.0000
+ dac ->e3top = -40.0000
  dac ->cathode = -50.0000
  dac ->e2 = -50.0000
  dac ->e1 = -50.0000
  dac ->dacspare = 2.4200
  dac -------------------
- adc<- forward = 0.7147
- adc<- reverse = 0.5194
+ adc<- forward = 0.7172
+ adc<- reverse = 0.5179
  adc<- ammeter = 2.4200
  adc<- spare = 0.0047
  adc<- spare = 0.0044
@@ -120,202 +120,26 @@
  dac ->e1 = 0.0000
  dac ->dacspare = 0.0000
  dac -------------------
- adc<- forward = 0.7153
- adc<- reverse = 0.5180
+ adc<- forward = 0.7188
+ adc<- reverse = 0.5250
  adc<- ammeter = 2.4200
- adc<- spare = 0.0047
- adc<- spare = 0.0045
+ adc<- spare = 0.0046
+ adc<- spare = 0.0044
  adc<- dactest = 0.0034
                         4, DAC=0.0000  ADC=0.0034
  dac ->anode = 50.0000
- dac ->e3bot = -50.0000
+ dac ->e3bot = -20.0000
  dac ->grid = 50.0000
- dac ->e3top = -50.0000
+ dac ->e3top = -40.0000
  dac ->cathode = -50.0000
  dac ->e2 = -50.0000
  dac ->e1 = -50.0000
  dac ->dacspare = 2.4200
- dac -------------------
- adc<- forward = 0.7154
- adc<- reverse = 0.5189
- adc<- ammeter = 2.4200
- adc<- spare = 0.0047
- adc<- spare = 0.0045
- adc<- dactest = 2.4200
-              5, DAC=2.4200  ADC=2.4200
- dac ->anode = 0.0000
- dac ->e3bot = 0.0000
- dac ->grid = 0.0000
- dac ->e3top = 0.0000
- dac ->cathode = 0.0000
- dac ->e2 = 0.0000
- dac ->e1 = 0.0000
- dac ->dacspare = 0.0000
- dac -------------------
- adc<- forward = 0.7162
- adc<- reverse = 0.5190
- adc<- ammeter = 2.4200
- adc<- spare = 0.0046
- adc<- spare = 0.0044
- adc<- dactest = 0.0034
-                        5, DAC=0.0000  ADC=0.0034
- dac ->anode = 50.0000
- dac ->e3bot = -50.0000
- dac ->grid = 50.0000
- dac ->e3top = -50.0000
- dac ->cathode = -50.0000
- dac ->e2 = -50.0000
- dac ->e1 = -50.0000
- dac ->dacspare = 2.4200
- dac -------------------
- adc<- forward = 0.7157
- adc<- reverse = 0.5181
- adc<- ammeter = 2.4200
- adc<- spare = 0.0047
- adc<- spare = 0.0044
- adc<- dactest = 2.4200
-              6, DAC=2.4200  ADC=2.4200
- dac ->anode = 0.0000
- dac ->e3bot = 0.0000
- dac ->grid = 0.0000
- dac ->e3top = 0.0000
- dac ->cathode = 0.0000
- dac ->e2 = 0.0000
- dac ->e1 = 0.0000
- dac ->dacspare = 0.0000
- dac -------------------
- adc<- forward = 0.7153
- adc<- reverse = 0.5178
- adc<- ammeter = 2.4200
- adc<- spare = 0.0047
- adc<- spare = 0.0044
- adc<- dactest = 0.0034
-                        6, DAC=0.0000  ADC=0.0034
- dac ->anode = 50.0000
- dac ->e3bot = -50.0000
- dac ->grid = 50.0000
- dac ->e3top = -50.0000
- dac ->cathode = -50.0000
- dac ->e2 = -50.0000
- dac ->e1 = -50.0000
- dac ->dacspare = 2.4200
- dac -------------------
- adc<- forward = 0.7155
- adc<- reverse = 0.5177
- adc<- ammeter = 2.4200
- adc<- spare = 0.0046
- adc<- spare = 0.0045
- adc<- dactest = 2.4200
-              7, DAC=2.4200  ADC=2.4200
- dac ->anode = 0.0000
- dac ->e3bot = 0.0000
- dac ->grid = 0.0000
- dac ->e3top = 0.0000
- dac ->cathode = 0.0000
- dac ->e2 = 0.0000
- dac ->e1 = 0.0000
- dac ->dacspare = 0.0000
- dac -------------------
- adc<- forward = 0.7158
- adc<- reverse = 0.5187
- adc<- ammeter = 2.4200
- adc<- spare = 0.0046
- adc<- spare = 0.0045
- adc<- dactest = 0.0034
-                        7, DAC=0.0000  ADC=0.0034
- dac ->anode = 50.0000
- dac ->e3bot = -50.0000
- dac ->grid = 50.0000
- dac ->e3top = -50.0000
- dac ->cathode = -50.0000
- dac ->e2 = -50.0000
- dac ->e1 = -50.0000
- dac ->dacspare = 2.4200
- dac -------------------
- adc<- forward = 0.7153
- adc<- reverse = 0.5179
- adc<- ammeter = 2.4200
- adc<- spare = 0.0047
- adc<- spare = 0.0044
- adc<- dactest = 2.4200
-              8, DAC=2.4200  ADC=2.4200
- dac ->anode = 0.0000
- dac ->e3bot = 0.0000
- dac ->grid = 0.0000
- dac ->e3top = 0.0000
- dac ->cathode = 0.0000
- dac ->e2 = 0.0000
- dac ->e1 = 0.0000
- dac ->dacspare = 0.0000
  dac -------------------
  adc<- forward = 0.7152
- adc<- reverse = 0.5186
+ adc<- reverse = 0.5156
  adc<- ammeter = 2.4200
  adc<- spare = 0.0047
  adc<- spare = 0.0044
- adc<- dactest = 0.0034
-                        8, DAC=0.0000  ADC=0.0034
- dac ->anode = 50.0000
- dac ->e3bot = -50.0000
- dac ->grid = 50.0000
- dac ->e3top = -50.0000
- dac ->cathode = -50.0000
- dac ->e2 = -50.0000
- dac ->e1 = -50.0000
- dac ->dacspare = 2.4200
- dac -------------------
- adc<- forward = 0.7154
- adc<- reverse = 0.5192
- adc<- ammeter = 2.4200
- adc<- spare = 0.0047
- adc<- spare = 0.0045
  adc<- dactest = 2.4200
-              9, DAC=2.4200  ADC=2.4200
- dac ->anode = 0.0000
- dac ->e3bot = 0.0000
- dac ->grid = 0.0000
- dac ->e3top = 0.0000
- dac ->cathode = 0.0000
- dac ->e2 = 0.0000
- dac ->e1 = 0.0000
- dac ->dacspare = 0.0000
- dac -------------------
- adc<- forward = 0.7148
- adc<- reverse = 0.5184
- adc<- ammeter = 2.4200
- adc<- spare = 0.0046
- adc<- spare = 0.0045
- adc<- dactest = 0.0034
-                        9, DAC=0.0000  ADC=0.0034
- dac ->anode = 50.0000
- dac ->e3bot = -50.0000
- dac ->grid = 50.0000
- dac ->e3top = -50.0000
- dac ->cathode = -50.0000
- dac ->e2 = -50.0000
- dac ->e1 = -50.0000
- dac ->dacspare = 2.4200
- dac -------------------
- adc<- forward = 0.7158
- adc<- reverse = 0.5184
- adc<- ammeter = 2.4200
- adc<- spare = 0.0046
- adc<- spare = 0.0045
- adc<- dactest = 2.4200
-              10, DAC=2.4200  ADC=2.4200
- dac ->anode = 0.0000
- dac ->e3bot = 0.0000
- dac ->grid = 0.0000
- dac ->e3top = 0.0000
- dac ->cathode = 0.0000
- dac ->e2 = 0.0000
- dac ->e1 = 0.0000
- dac ->dacspare = 0.0000
- dac -------------------
- adc<- forward = 0.7155
- adc<- reverse = 0.5198
- adc<- ammeter = 2.4200
- adc<- spare = 0.0046
- adc<- spare = 0.0044
- adc<- dactest = 0.0034
-                        10, DAC=0.0000  ADC=0.0034
+              5, DAC=2.4200  ADC=2.4200
