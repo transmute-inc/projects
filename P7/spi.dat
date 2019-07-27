@@ -1,145 +1,41 @@
- PLL reg0-5 = 80a00000, 103e9, 10005f42, 1f23, 63de80fc, 400005
- dac ->anode = 50.0000
- dac ->e3bot = -20.0000
- dac ->grid = 50.0000
- dac ->e3top = -40.0000
- dac ->cathode = -50.0000
- dac ->e2 = -50.0000
- dac ->e1 = -50.0000
- dac ->dacspare = 2.4200
- dac -------------------
- adc<- forward = 0.7205
- adc<- reverse = 0.5213
- adc<- ammeter = 2.4200
- adc<- spare = 0.0047
- adc<- spare = 0.0045
- adc<- dactest = 2.4200
-              1, DAC=2.4200  ADC=2.4200
- dac ->anode = 0.0000
- dac ->e3bot = 0.0000
- dac ->grid = 0.0000
- dac ->e3top = 0.0000
- dac ->cathode = 0.0000
- dac ->e2 = 0.0000
- dac ->e1 = 0.0000
- dac ->dacspare = 0.0000
- dac -------------------
- adc<- forward = 0.7200
- adc<- reverse = 0.5259
- adc<- ammeter = 2.4200
- adc<- spare = 0.0046
- adc<- spare = 0.0044
- adc<- dactest = 0.0034
-                        1, DAC=0.0000  ADC=0.0034
- dac ->anode = 50.0000
- dac ->e3bot = -20.0000
- dac ->grid = 50.0000
- dac ->e3top = -40.0000
- dac ->cathode = -50.0000
- dac ->e2 = -50.0000
- dac ->e1 = -50.0000
- dac ->dacspare = 2.4200
- dac -------------------
- adc<- forward = 0.7164
- adc<- reverse = 0.5259
- adc<- ammeter = 2.4200
- adc<- spare = 0.0047
- adc<- spare = 0.0045
- adc<- dactest = 2.4200
-              2, DAC=2.4200  ADC=2.4200
- dac ->anode = 0.0000
- dac ->e3bot = 0.0000
- dac ->grid = 0.0000
- dac ->e3top = 0.0000
- dac ->cathode = 0.0000
- dac ->e2 = 0.0000
- dac ->e1 = 0.0000
- dac ->dacspare = 0.0000
- dac -------------------
- adc<- forward = 0.7146
- adc<- reverse = 0.5181
- adc<- ammeter = 2.4200
- adc<- spare = 0.0046
- adc<- spare = 0.0044
- adc<- dactest = 0.0034
-                        2, DAC=0.0000  ADC=0.0034
- dac ->anode = 50.0000
- dac ->e3bot = -20.0000
- dac ->grid = 50.0000
- dac ->e3top = -40.0000
- dac ->cathode = -50.0000
- dac ->e2 = -50.0000
- dac ->e1 = -50.0000
- dac ->dacspare = 2.4200
- dac -------------------
- adc<- forward = 0.7134
- adc<- reverse = 0.5175
- adc<- ammeter = 2.4200
- adc<- spare = 0.0047
- adc<- spare = 0.0044
- adc<- dactest = 2.4200
-              3, DAC=2.4200  ADC=2.4200
- dac ->anode = 0.0000
- dac ->e3bot = 0.0000
- dac ->grid = 0.0000
- dac ->e3top = 0.0000
- dac ->cathode = 0.0000
- dac ->e2 = 0.0000
- dac ->e1 = 0.0000
- dac ->dacspare = 0.0000
- dac -------------------
- adc<- forward = 0.7133
- adc<- reverse = 0.5168
- adc<- ammeter = 2.4200
- adc<- spare = 0.0046
- adc<- spare = 0.0044
- adc<- dactest = 0.0034
-                        3, DAC=0.0000  ADC=0.0034
- dac ->anode = 50.0000
- dac ->e3bot = -20.0000
- dac ->grid = 50.0000
- dac ->e3top = -40.0000
- dac ->cathode = -50.0000
- dac ->e2 = -50.0000
- dac ->e1 = -50.0000
- dac ->dacspare = 2.4200
- dac -------------------
- adc<- forward = 0.7172
- adc<- reverse = 0.5179
- adc<- ammeter = 2.4200
- adc<- spare = 0.0047
- adc<- spare = 0.0044
- adc<- dactest = 2.4200
-              4, DAC=2.4200  ADC=2.4200
- dac ->anode = 0.0000
- dac ->e3bot = 0.0000
- dac ->grid = 0.0000
- dac ->e3top = 0.0000
- dac ->cathode = 0.0000
- dac ->e2 = 0.0000
- dac ->e1 = 0.0000
- dac ->dacspare = 0.0000
- dac -------------------
- adc<- forward = 0.7188
- adc<- reverse = 0.5250
- adc<- ammeter = 2.4200
- adc<- spare = 0.0046
- adc<- spare = 0.0044
- adc<- dactest = 0.0034
-                        4, DAC=0.0000  ADC=0.0034
- dac ->anode = 50.0000
- dac ->e3bot = -20.0000
- dac ->grid = 50.0000
- dac ->e3top = -40.0000
- dac ->cathode = -50.0000
- dac ->e2 = -50.0000
- dac ->e1 = -50.0000
- dac ->dacspare = 2.4200
- dac -------------------
- adc<- forward = 0.7152
- adc<- reverse = 0.5156
- adc<- ammeter = 2.4200
- adc<- spare = 0.0047
- adc<- spare = 0.0044
- adc<- dactest = 2.4200
-              5, DAC=2.4200  ADC=2.4200
+sweep from 0.0 to 10.0  across r_proton=1000000000
+cathode=0.00  ammeter=0.00480  v_calc=0.00000  scale=inf
+cathode=2.00  ammeter=0.18873  v_calc=0.00010  scale=1891.132
+cathode=4.00  ammeter=0.37258  v_calc=0.00020  scale=1866.742
+cathode=6.00  ammeter=0.55605  v_calc=0.00030  scale=1857.291
+cathode=8.00  ammeter=0.74041  v_calc=0.00040  scale=1854.839
+cathode=10.00  ammeter=0.92371  v_calc=0.00050  scale=1851.206
+cathode=8.00  ammeter=0.74016  v_calc=0.00040  scale=1854.203
+cathode=6.00  ammeter=0.55579  v_calc=0.00030  scale=1856.447
+cathode=4.00  ammeter=0.37263  v_calc=0.00020  scale=1866.960
+cathode=2.00  ammeter=0.18828  v_calc=0.00010  scale=1886.623
+cathode=0.00  ammeter=0.00452  v_calc=0.00000  scale=inf
+cathode=2.00  ammeter=0.18808  v_calc=0.00010  scale=1884.712
+cathode=4.00  ammeter=0.37398  v_calc=0.00020  scale=1873.738
+cathode=6.00  ammeter=0.55673  v_calc=0.00030  scale=1859.584
+cathode=8.00  ammeter=0.74008  v_calc=0.00040  scale=1853.991
+cathode=10.00  ammeter=0.92286  v_calc=0.00050  scale=1849.511
+cathode=8.00  ammeter=0.73976  v_calc=0.00040  scale=1853.198
+cathode=6.00  ammeter=0.55754  v_calc=0.00030  scale=1862.273
+cathode=4.00  ammeter=0.37272  v_calc=0.00020  scale=1867.437
+cathode=2.00  ammeter=0.18933  v_calc=0.00010  scale=1897.194
+cathode=0.00  ammeter=0.00486  v_calc=0.00000  scale=inf
+cathode=2.00  ammeter=0.18835  v_calc=0.00010  scale=1887.333
+cathode=4.00  ammeter=0.37304  v_calc=0.00020  scale=1869.026
+cathode=6.00  ammeter=0.55732  v_calc=0.00030  scale=1861.539
+cathode=8.00  ammeter=0.74065  v_calc=0.00040  scale=1855.422
+cathode=10.00  ammeter=0.92340  v_calc=0.00050  scale=1850.603
+cathode=8.00  ammeter=0.74084  v_calc=0.00040  scale=1855.894
+cathode=6.00  ammeter=0.55610  v_calc=0.00030  scale=1857.483
+cathode=4.00  ammeter=0.37323  v_calc=0.00020  scale=1869.959
+cathode=2.00  ammeter=0.18869  v_calc=0.00010  scale=1890.810
+cathode=0.00  ammeter=0.00435  v_calc=0.00000  scale=inf
+cathode=2.00  ammeter=0.18846  v_calc=0.00010  scale=1888.500
+cathode=4.00  ammeter=0.37298  v_calc=0.00020  scale=1868.740
+cathode=6.00  ammeter=0.55691  v_calc=0.00030  scale=1860.185
+cathode=8.00  ammeter=0.74071  v_calc=0.00040  scale=1855.591
+cathode=10.00  ammeter=0.92317  v_calc=0.00050  scale=1850.125
+cathode=8.00  ammeter=0.73951  v_calc=0.00040  scale=1852.566
+cathode=6.00  ammeter=0.55712  v_calc=0.00030  scale=1860.888
+cathode=4.00  ammeter=0.37311  v_calc=0.00020  scale=1869.390
+cathode=2.00  ammeter=0.18874  v_calc=0.00010  scale=1891.258

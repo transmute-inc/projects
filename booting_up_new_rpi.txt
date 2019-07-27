@@ -19,15 +19,20 @@ the Raspberry Pi Forums ( http://www.raspberrypi.org/forums/ ) for support.
 4. Set up OS
 	Set preferences / Mouse and Keyboard settings / US / english(US)
 	Setup Wifi (symbol in upper right hand corner of screen.
-	Download pigpio library from http://abyz.co.uk/rpi/pigpio/
-	install pigpio library to use both the SPI0 and SPI1 ports
-		
+	Run vncserver
+	 for help, https://www.realvnc.com/en/connect/docs/raspberry-pi.html#raspberry-pi-connect-direct
+	 use legacy openGL
+4.1 Install PIgpio  (current 1.68-3) (4/11/18)
+	rm pigpio.zip
+	sudo rm -rf PIGPIO
+	wget abyz.me.uk/rpi/pigpio/pigpio.zip
+	unzip pigpio.zip
 	cd PIGPIO
 	make
-	sudo make install  
+	sudo make install
 !!!-->	sudo chmod a+w /var/run/pigpio.pid              (otherwise, gpio will not init.) 
 
-4.1 Update the OS		# www.raspberrypi.org/documentation/raspbian/
+4.2 Update the OS		# www.raspberrypi.org/documentation/raspbian/
 	lsb_release -da			# current release
 	sudo apt-get update
 	sudo apt-get upgrade
@@ -76,22 +81,24 @@ I was NOT ABLE to reassign the pins on SPI1.
 Be sure to check "New Partition UUIDs" so you can mount the copied sd card. 
 SD disks must have different UUIDs to be mounted concurrently on the same system.
 
-Current status of 32G micro SD cards (180410)
+Current status of 32G micro SD cards (190606)
 	#5  32g debian 2.4.5 clone of #6 for Chris
 
 	#1  32g debian 2.7.0 180608 for rpi 3B to Chris
-	#2  debian 9.4 181010 copied to Bob (has 2 & B)
+	#2  32g fat32 free
 	#3  32g debian 9.5 181011 copied to Bob
 	#4  32g clone of #6 180409
 	
-	#6  8g Last good 2.4.5 rpi3 before noobs 2.7.0 download 180409
-	#7  8g clone of 181010
-	#8  8g music & xfer
+	#6  8g free fat32
+	#7  8g free fat32
+	#8  8g music & X9 server installed software backup
 	#9  8G fat32 xfer drive
 
-	#A  16g debian 9.5 181010	# os is 4.4g, but 8g is not quite big enough
-	#B  16g 2.7.0 180410 Bob	# 32g takes too long to image, so 16g is just right!
+	#A  16g 
+	#B  16g free fat32
 	#C  16g backup of #A
+	#11 16g backup 190722  (9.4) 
+	#12 16g backup 190627  (9.4)
 	
 
 8. Text editors can be run from command window.
@@ -99,8 +106,16 @@ Current status of 32G micro SD cards (180410)
 	nano			# quick and dirty 
 	vi			# (Vim 8.0)    
 
+9. VNC https://www.realvnc.com/en/connect/docs/raspberry-pi.html#raspberry-pi-setup
+	kim client	kimh@santolina.com	proton2019
+	kim Server	71-a6-e0-18-bf-63-93-67	Orinoco iron collect. Prague magic senior
 
-9. Link to dropbox uploader 	# work in progress - I do not have this working yet.
+10. sdcard management
+	sudo fdisk -l			list all disks and their partitions
+	sudo fdisk /dev/sda		d delete, n new, w write
+	mkfs.vfat -F 32 /dev/sda1	install fat32 file system
+ 
+11. Link to dropbox uploader 	# work in progress - I do not have this working yet.
 	https://www.raspberrypi.org/magpi/dropbox-raspberry-pi/
 	github.com/andreafabrizi/Dropbox-Uploader.git
 	./dropbox_uploader.sh
