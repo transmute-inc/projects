@@ -23,7 +23,9 @@ git log p6.c		to see changes to p6.c
 To push the local repository to github, 
 
 git remote add origin https://github.com/transmute-inc/projects.git
-git push -u origin master  (user=transmute-inc  pass=proton2018)
+git push -u origin master  (user=transmute-inc  pass=Proton2020!)
+
+
 
 *******  clone repository after building a new rpi OS
 git clone https://github.com/transmute-inc/projects
