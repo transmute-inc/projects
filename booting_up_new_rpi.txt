@@ -25,14 +25,24 @@ the Raspberry Pi Forums ( http://www.raspberrypi.org/forums/ ) for support.
 4.1 Install PIgpio  (current 1.68-3) (4/11/18)
 	rm pigpio.zip
 	sudo rm -rf PIGPIO
-	wget abyz.me.uk/rpi/pigpio/pigpio.zip
-	unzip pigpio.zip
+	wget abyz.me.uk/rpi/pigpio/pigpio.zip     # for rpi3B+
+  pi4      wget https://github.com/joan2937/pigpio/archive/master.zip
+	unzip pigpio-master.zip
+	rename pigpio-master to PIGPIO    # for old scripts compatibility
 	cd PIGPIO
 	make
 	sudo make install
 !!!-->	sudo chmod a+w /var/run/pigpio.pid              (otherwise, gpio will not init.) 
+  pi4              pigpio.pid is not in /var for the pi4
 
-4.2 Update the OS		# www.raspberrypi.org/documentation/raspbian/
+4.2 Install Gnuplot
+	sudo apt-get install gnuplot
+
+4.3 Install kicad
+	sudo apt-get install kicad
+
+
+4.4 Update the OS		# www.raspberrypi.org/documentation/raspbian/
 	lsb_release -da			# current release
 	sudo apt-get update
 	sudo apt-get upgrade
@@ -46,11 +56,11 @@ http://markjatboinc.blogspot.com/2017/09/add-stretch-backports-to-rpi.html
 5. Enable SPI and check /boot/overlays/README disable spi0 hardware chipselects
  (www.raspberrypi.org/documentation/configuration/device-tree.md)  
 I was NOT ABLE to reassign the pins on SPI1.
-18,17, & 16 are the defaults.
+18,17, & 16 are the defaults.  
 
-	sudo nano /boot/config.txt    uncomment (remove #) on 
-	dtparam=spi=on  					# enable SPI
-	dtoverlay=spi1-3cs,cs0_pin=18,cs1_pin=17,cs2_pin=16	# enable SPI1
+	sudo mouspad /boot/config.txt    uncomment (remove #) on 
+pi3	dtparam=spi=on  					# enable SPI
+pi3	dtoverlay=spi1-3cs,cs0_pin=18,cs1_pin=17,cs2_pin=16	# enable SPI1
 
 
 6. Serial port   https://spellfoundry.com/2016/05/29/configuring-gpio-serial-port-raspbian-jessie-including-pi-3/
@@ -60,19 +70,19 @@ I was NOT ABLE to reassign the pins on SPI1.
 	$ sudo systemctl stop serial-getty@ttyS0.service
 	$ sudo systemctl disable serial-getty@ttyS0.service
 
-6.3 Remove the console from the cmdline.txt - it defaults to 9600 baud. If you edit this with:
-	$ sudo nano /boot/cmdline.txt
+6.3 Remove the console from the cmdline.txt - it defaults to 9600 baud. This does not seem to be necessary for the pi4.
+	$ sudo mousepad /boot/cmdline.txt
 
 	you will see something like:
 	dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes root wait
 
 	remove the line: console=serial0,115200 and save and reboot for changes to take effect.
 
-6.4 Clone github repository. www.github.com  user=transmute-inc, pass=proton2018
+6.4 Clone github repository. www.github.com  user=transmute-inc, pass=Proton2020!
 	download zip file and create projects directory
 	git config --global user.name "kim hailey"		# or Bob	
 	git config --global user.email "kimh@transmute.com"	# your email
-	git config --global core.editor leafpad
+	git config --global core.editor mousepad
 
 	cd projects
 	git init
@@ -84,7 +94,7 @@ SD disks must have different UUIDs to be mounted concurrently on the same system
 Current status of 32G micro SD cards (190606)
 	#5  32g debian 2.4.5 clone of #6 for Chris
 
-	#1  32g debian 2.7.0 180608 for rpi 3B to Chris
+	#1  32g Mozilla-IOT server Webthings
 	#2  32g fat32 free
 	#3  32g debian 9.5 181011 copied to Bob
 	#4  32g clone of #6 180409
@@ -94,21 +104,26 @@ Current status of 32G micro SD cards (190606)
 	#8  8g music & X9 server installed software backup
 	#9  8G fat32 xfer drive
 
+	#11 16g backup 190722  (9.4) 
+	#12 16g backup F 200423  Buster 10
 	#A  16g 
 	#B  16g free fat32
 	#C  16g backup of #A
-	#11 16g backup 190722  (9.4) 
-	#12 16g backup 190627  (9.4)
+	#D  16g new
+	#E  16g backup of #F
+	#F  16g rpi4 Buster 10
+
 	
 
 8. Text editors can be run from command window.
-	leafpad  		# like notepad, default on file browser
+	mousepad  		# like notepad, default on file browser
 	nano			# quick and dirty 
-	vi			# (Vim 8.0)    
+	vi			# (Vim 8.0)  
+	geany			# IDE  
 
 9. VNC https://www.realvnc.com/en/connect/docs/raspberry-pi.html#raspberry-pi-setup
 	kim client	kimh@santolina.com	proton2019
-	kim Server	71-a6-e0-18-bf-63-93-67	Orinoco iron collect. Prague magic senior
+	kim Server	
 
 10. sdcard management
 	sudo fdisk -l			list all disks and their partitions
