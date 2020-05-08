@@ -5,7 +5,7 @@ https://projects.raspberrypi.org/en/projects/getting-started-with-git/
 
 git config --global user.name "kim hailey"
 git config --global user.email "kimh@transmute.com"
-git config --global core.editor leafpad
+git config --global core.editor mousepad
 
 cd projects
 git init
