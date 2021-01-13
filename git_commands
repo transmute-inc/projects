@@ -23,7 +23,7 @@ git diff
 To push the local repository to github, 
 
 ( only once to start ) git remote add origin https://github.com/transmute-inc/projects.git
-git push -u origin master  (user=transmute-inc  pass=PRoton2021!)
+git push -u origin master  (user=transmute-inc  pass=Proton2021!)
 
 
 
