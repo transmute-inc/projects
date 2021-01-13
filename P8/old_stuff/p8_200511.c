@@ -42,13 +42,13 @@
 #define	Vref		2.534	// vref is common for adc & dac
 #define	dac_bits	65535
 #define	adc_bits	16777215
+#define	r_sense		999.900	// ammeter sense resistor
 #define amp_scale	1.98	// diff-amp scaling factor for ammeter
 
 #define  forward	0		// AIN0P
 #define  reflected	1		// AIN1P
 #define  ammeter	2		// AIN2P
-#define  adc_3		3		// AIN3P
-#define  ysi		4		// AIN4P
+#define  ysi	4		// AIN4P
 #define  adc_spare	5		// AIN5P
 
 int32_t  anode		=0;		// DAC0
@@ -158,9 +158,8 @@ int   serial_gage_init( );
 int   serial_gage_read( );
 int   serial_test( );
 int   plotit( );
-int   proton_current(int32_t adc_channel);
-void   mass_flow(int32_t number_puffs, int32_t H2_vac);
-void   proton_infusion(int32_t adc_channel);
+int   proton_current( );
+int   proton_infusion( );
 int   ammeter_test( );
 int   help_main_menu( );
 int   help_s_menu( );
@@ -180,8 +179,8 @@ char main_cmd;
 char buff[4], buff_rx[4];
 union equivs { uint32_t J; unsigned char CJ[4]; } eq;
 
-	int32_t  boardnumber, pelletnumber ;
-	float  r_sense, Vcathode;
+	int32_t  pelletnumber ;
+	float  Vcathode;
 
 
 
@@ -198,19 +197,12 @@ int main(void)
     sprintf(date_time,"%04d%02d%02d-%02d%02d", tm.tm_year+1900, tm.tm_mon+1,
 										tm.tm_mday,tm.tm_hour, tm.tm_min);
 
-	printf(" board 1 or 2? ");
-	scanf(" %d", &boardnumber);
-	if(boardnumber == 1) {
-		r_sense = 975.00;	// ammeter sense R21  Kim's 1 board
-	}
-	else {
-		r_sense = 47700;	// ammeter sense R21 Bob's 2 board 
-	}
+
 	printf(" pellet number? ");
-	scanf(" %d", &pelletnumber);
+	scanf("%d", &pelletnumber);
 	printf(" cathode voltage - ");
-	scanf(" %f", &Vcathode);
-	Vcathode = fabs(Vcathode);
+	scanf("%f", &Vcathode);
+	if(Vcathode > 0 ) Vcathode = -Vcathode;
 	printf("pellet = %d  cathode = %f \n",pelletnumber, Vcathode);
 
 
@@ -234,9 +226,6 @@ int main(void)
 	spi.att1_fd = spiOpen(0, spiBaud, 256);	//ce0   18   12
 	spi.pll_fd =  spiOpen(1, spiBaud, 256);	//ce1   17   11
 	spi.att2_fd = spiOpen(2, spiBaud, 256);	//ce2   13   33
-	FILE *fp;
-	fp = fopen( "spi.dat", "w+" );
-	spi.fp = fp;
 	
 
 //	char adc_names[6][8] = {"forward ", "reverse ", "ammeter ", "spare   ", "spare   ", "dac_test"};
@@ -273,33 +262,38 @@ int main(void)
 			help_main_menu();
 		}
 		if (main_cmd == 'a') {		// puff of H2
-			mass_flow(2,H2_in);	//regulator setting on H2 tank
+			gpioWrite (H2_in, 1);
+			gpioWrite (H2_out,1);	
+			gpioWrite (Vac,1);	
+			usleep(1000000);
+			gpioWrite (H2_in,  0);
+			gpioWrite (H2_out, 0);
+			gpioWrite (Vac, 0);
 			adc_read( );
-			serial_gage_read( );
-			printf( "ysi=%.3f ammeter=%.6f gage=%.3f",	spi.ADC[ysi], spi.ADC[ammeter]*1000, vgage.gage );
-			fflush(stdout);
+			printf( "ysi=%.3f",	spi.ADC[ysi] );
+
+/*			gpioWrite (H2_in, 1);	usleep(500000);
+			gpioWrite (H2_in,  0);	usleep(10000);
+			gpioWrite (H2_out,1);	usleep(40000);
+			gpioWrite (H2_out, 0); 
+*/
 		}
 		if (main_cmd == 's') {		// suck of vac
-			mass_flow(1,Vac_pump);
-			adc_read( );
-			serial_gage_read( );
-			printf( "ysi=%.3f ammeter=%.6f gage=%.3f",	spi.ADC[ysi], spi.ADC[ammeter]*1000, vgage.gage );
-			fflush(stdout);
+			gpioWrite (Vac_pump, 1);	usleep(500000);
+			gpioWrite (Vac_pump, 0);	usleep(10000);
+			gpioWrite (Vac,1);			usleep(40000);
+			gpioWrite (Vac, 0);
 		}
 		if (main_cmd == 'd')		// evacuate
 		{
 			gpioWrite (Vac_pump, 1);
 			gpioWrite (Vac,      1);
 		}
-		if (main_cmd == 'f') {		// Vacuum off
+		if (main_cmd == 'f') {	// Vacuum off
 			gpioWrite (Vac_pump, 0);
 			gpioWrite (Vac,      0);
-			adc_read( );
-			serial_gage_read( );
-			printf( "ysi=%.3f ammeter=%.6f gage=%.3f",	spi.ADC[ysi], spi.ADC[ammeter]*1000, vgage.gage );
-			fflush(stdout);
 		}
-		if (main_cmd == 't') {		// Read rs-232 port
+		if (main_cmd == 't') {	// Read rs-232 port
 			serial_gage_read( );
 			printf ( " gage=  %.4f\n", vgage.gage );
 
@@ -364,8 +358,6 @@ int main(void)
 	gpioWrite (Vac, 0);
 	gpioWrite (Vac_pump, 0);
     gpioTerminate();
-    fclose(spi.fp);
-
 
 	clock_t toc = clock();
 	printf("Elapsed: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
@@ -382,42 +374,47 @@ void *_spi_thread( void *ss )
     struct  tm tm = *localtime(&T);
     sprintf(date_time,"%04d%02d%02d-%02d%02d", tm.tm_year+1900, tm.tm_mon+1,
 										tm.tm_mday,tm.tm_hour, tm.tm_min);
+	FILE *fp;
+	fp = fopen( "spi.dat", "w+" );
+	spi.fp = fp;
 	count = 0;
 	
 	dac_init( );
 	adc_init( 2 );	// mode 1 code does not work yet, use mode 2
 	pll_Init( );
-		
-	if     (spi.cmd=='a'){spi.cmd=0;dac_adc_Test(); }	//cycles dac_test line 0v->2.44v
-	else if(spi.cmd=='c'){spi.cmd=0;ce_Test(); } 		//chip enables with one byte data
-	else if(spi.cmd=='g'){spi.cmd=0;gpio_Test( ); }		//valve test
-	else if(spi.cmd=='i'){spi.cmd=0;proton_current(ammeter); }	
-	else if(spi.cmd=='j'){spi.cmd=0;proton_current(ysi); }	
-	else if(spi.cmd=='n'){spi.cmd=0;proton_infusion(ammeter); }	
-	else if(spi.cmd=='y'){spi.cmd=0;proton_infusion(ysi); }	
-	else if(spi.cmd=='b'){spi.cmd=0;ammeter_test( ); }	
-	else if(spi.cmd=='k'){spi.cmd=0;dac_spare_test( ); }	
-	else if(spi.cmd=='s'){spi.cmd=0;serial_test( ); }	//serial i/o test
-	else if(spi.cmd=='t'){spi.cmd=0;att_Test( ); }		//just sets the PE43711 attenuator
-	else if(spi.cmd=='l'){spi.cmd=0;logamp_Test( ); }	//reads voltages on logamps
-	else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0,  1.1, 0.1, 10000, cathode,2,      981);} 
-//	else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0,  1, 0.2, 10000, cathode,2,   1000000);}	// for 1meg
-//	else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0,  10,  2, 10000, cathode,4,  10000000);} // for 10meg
-//	else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0,  10,  2, 10000, cathode,4,1000000000);} // for 1g
-//	else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0, 2.0,0.5, 10000, dac_spare,4, 10000000);} 
-	else if(spi.cmd=='p'){spi.cmd=0;pll_Test( ); }	
-	else if(spi.cmd=='f'){spi.cmd=0;find_resonance( 100, 200, 5, 1000);}
 
-	usleep(100000);
-	clock_t toc = clock();
-//	fprintf(spi.fp, "spi: %d,  %s,   %f seconds\n", count, &spi.cmd, 
-//	(double)(toc - spi.last) / CLOCKS_PER_SEC);
-	spi.last = toc;
-	count++;
+//	while(spi.thread_status != kill){
+		
+		if     (spi.cmd=='a'){spi.cmd=0;dac_adc_Test(); }	//cycles dac_test line 0v->2.44v
+		else if(spi.cmd=='c'){spi.cmd=0;ce_Test(); } 		//chip enables with one byte data
+		else if(spi.cmd=='g'){spi.cmd=0;gpio_Test( ); }		//valve test
+		else if(spi.cmd=='i'){spi.cmd=0;proton_current( ); }	
+		else if(spi.cmd=='n'){spi.cmd=0;proton_infusion( ); }	
+		else if(spi.cmd=='b'){spi.cmd=0;ammeter_test( ); }	
+		else if(spi.cmd=='k'){spi.cmd=0;dac_spare_test( ); }	
+		else if(spi.cmd=='s'){spi.cmd=0;serial_test( ); }	//serial i/o test
+		else if(spi.cmd=='t'){spi.cmd=0;att_Test( ); }		//just sets the PE43711 attenuator
+		else if(spi.cmd=='l'){spi.cmd=0;logamp_Test( ); }	//reads voltages on logamps
+		else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0,  1.1, 0.1, 10000, cathode,2,      981);} 
+//		else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0,  1, 0.2, 10000, cathode,2,   1000000);}	// for 1meg
+//		else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0,  10,  2, 10000, cathode,4,  10000000);} // for 10meg
+//		else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0,  10,  2, 10000, cathode,4,1000000000);} // for 1g
+//		else if(spi.cmd=='d'){spi.cmd=0;dac_Sweep( 0, 2.0,0.5, 10000, dac_spare,4, 10000000);} 
+		else if(spi.cmd=='p'){spi.cmd=0;pll_Test( ); }	
+		else if(spi.cmd=='f'){spi.cmd=0;find_resonance( 100, 200, 5, 1000);}
+
+		usleep(100000);
+		clock_t toc = clock();
+//		fprintf(spi.fp, "spi: %d,  %s,   %f seconds\n", count, &spi.cmd, 
+//		(double)(toc - spi.last) / CLOCKS_PER_SEC);
+		spi.last = toc;
+		count++;
+//	}
 	
 	spi.thread_status = not_running ;
 	spi.task_status = not_running;
 
+	fclose(fp);
 	pthread_exit(NULL);
 }
 
@@ -1048,7 +1045,6 @@ void adc_read( )
 //		fprintf( spi.fp, " adc<- %s = %.4f\n",  spi.adc_names[n], spi.ADC[n]);
 		usleep(2000); 		//1000	
 
-
 	}
 
 //  make any instrument corrections here
@@ -1056,15 +1052,15 @@ void adc_read( )
 //  2- run ammeter_test and find the offset and slope factor from I.dat
 //	3- divide by 2 - the diffamp circuit doubles the voltage across Rsense
 //	4- restore the ammeter_test divide by Rsense.	
-		spi.ADC[ammeter] = (spi.ADC[ammeter] ) * .96 /2.0 / r_sense; 
+//		spi.ADC[ammeter] = (spi.ADC[ammeter] - 0.055 ) * .975 /2; 
+//		spi.ADC[ammeter] = (spi.ADC[ammeter] - 0.002 ) / 2 ; 
 //		spi.ADC[ysi] = (spi.ADC[ysi] - 0.002) / 2 ; 
 		spi.ADC[adc_spare] = (spi.ADC[adc_spare] -0.00358) * 0.99 ; 
 		spi.DB[forward] = spi.ADC[forward] /0.021 - 87; //convert to dBv
 //		spi.DB[reflected] = spi.ADC[reflected] /0.021 - 87;
 //		spi.DB[sniffer] = spi.ADC[sniffer] /0.021 - 87;	
-
-	fprintf( spi.fp, "ADC[0-5]= %.6f, %.6f, %.6f, %.6f, %.6f, %.6f\n",
-	spi.ADC[0],spi.ADC[1],spi.ADC[2],spi.ADC[3],spi.ADC[4],spi.ADC[5]);
+//	fprintf( spi.fp, "ADC[0-5]= %.4f, %.4f, %.4f, %.4f, %.4f, %.4f\n",
+//	spi.ADC[0],spi.ADC[1],spi.ADC[2],spi.ADC[3],spi.ADC[4],spi.ADC[5]);
 	
 	return;
 }
@@ -1291,7 +1287,7 @@ void dac_Sweep(float start, float end, float dv, int32_t dt, int32_t channel, in
 				cat_corrected = spi.DAC[cathode] + 0.062;		
 				i_calc = cat_corrected/(r_proton + r_sense);	
 				v_calc = r_sense * i_calc;  // e = r * i(tot)
-				i_measured = spi.ADC[ammeter];					
+				i_measured = spi.ADC[ammeter] / r_sense;					
 				fprintf( spi.fp, "cathode=%.4f v_calc=%.4f   ammeter=%.4f   i_calc=%.4e  I=%.4e\n",  
 							cat_corrected, v_calc, spi.ADC[ammeter], i_calc,  i_measured );
 			}
@@ -1314,7 +1310,7 @@ void dac_Sweep(float start, float end, float dv, int32_t dt, int32_t channel, in
 				cat_corrected = spi.DAC[cathode] + 0.062;		
 				i_calc = cat_corrected/(r_proton + r_sense);	
 				v_calc = r_sense * i_calc;  // e = r * i(tot)
-				i_measured = spi.ADC[ammeter];					
+				i_measured = spi.ADC[ammeter] / r_sense;					
 				fprintf( spi.fp, "cathode=%.4f v_calc=%.4f   ammeter=%.4f   i_calc=%.4e  I=%.4e\n",  
 							cat_corrected, v_calc, spi.ADC[ammeter], i_calc,  i_measured );
 			}
@@ -1519,51 +1515,11 @@ int serial_gage_read( )
 	return 0;
 }
 
-
-void   mass_flow(int32_t number_puffs, int32_t H2_vac)
-{
-	int32_t  puffs;
-
-	puffs = 0;
-	while ( puffs < number_puffs) { 
-
-		if( H2_vac == H2_in ) {
-			gpioWrite (H2_out, 0) ;
-			gpioWrite (H2_in, 1) ;	
-			usleep(20000);
-			gpioWrite (H2_in, 0) ;				
-			gpioWrite (H2_out, 1) ;
-			usleep(20000);
-			gpioWrite (H2_out, 0) ;
-		}
-		if( H2_vac == Vac ) {
-			gpioWrite (Vac_pump, 1) ;
-			gpioWrite (Vac, 0) ;	
-			usleep(10000);
-			gpioWrite (Vac_pump, 0) ;
-			gpioWrite (Vac, 1) ;				
-			usleep(10000);
-			gpioWrite (Vac, 0) ;
-		}
-		if( H2_vac == Vac_pump ) {
-			gpioWrite (Vac_pump, 1) ;
-			gpioWrite (Vac, 1) ;	
-			usleep(100000);
-			gpioWrite (Vac_pump, 0) ;
-			gpioWrite (Vac, 0) ;
-		}
-
-		puffs = puffs + 1;
-	}
-}
-
-
-
 ///////////////////////////////////////////
-int   proton_current(int32_t adc_channel)
+int   proton_current( )
 {
-	int32_t  gage_count, Vx100;
-	float i_measured, tictoc, max_gage;
+	int32_t  gage_count, current_count, Vx100;
+	float i_measured, tictoc;
 	char plot_cmd[96], plotfilename[32];
 
 /*	printf(" pellet number? and cathode voltage =");
@@ -1580,60 +1536,60 @@ int   proton_current(int32_t adc_channel)
 	FILE *I_fp;			// open plot file
 	I_fp = fopen( "I.dat", "w+" );
 	
-	FILE *I_record;			// open record file
-	I_record = fopen( "I_record.dat", "a+" );	
-	
+//	Vcathode= -40.0;
 	spi.DAC[cathode] = Vcathode;	// ammeter is hooked to cathode
 	dac_write( );
 
-	gpioWrite(Vac, 1);				//suck out any residual H2 
+	gpioWrite(Vac, 1);			//suck out any residual H2 
 	gpioWrite(Vac_pump, 1);
-	usleep(1000000);
+	usleep(500000);
 	gpioWrite(Vac, 0);
 	gpioWrite(Vac_pump, 0);
-	usleep(1000000);
-		
+	usleep(500000);
+	
 	serial_gage_read( );
+	usleep(500000);
+	serial_gage_read( );
+	usleep(500000);
 	
 	clock_t tic = clock();
-/*
- * mass_flow delivers a number of puffs of H2 
- * mount of H2 delivered depends of number of puffs and regulator setting on H2 tanks
- * or a number of sucks of vacuum
- */
-
 
 	gage_count = 0;
-	while (spi.task_status != kill && gage_count <100) { 
+	while (spi.task_status != kill && gage_count <80) { 
 
-		if( gage_count == 10 ) mass_flow(2,H2_in);		// puff of H2
-		if( gage_count == 20 ) mass_flow(5,Vac_pump);	// a little suck
-		if( gage_count == 40 ) mass_flow(2,H2_in);		// puff of H2
-		if( gage_count == 50 ) mass_flow(5,Vac_pump);	// a little suck
-		if( gage_count == 60 ) gpioWrite(Vac_pump, 1);	// clean it up
-	
+		if( gage_count == 20 ) {
+			gpioWrite (H2_in, 1) ;	
+			gpioWrite (H2_out, 1) ;
+		}
+		if( gage_count == 25 ) {
+			gpioWrite (H2_in, 0) ;	
+			gpioWrite (H2_out, 0) ;
+		}
+		if( gage_count == 40 ) {
+			gpioWrite (Vac, 1) ;	
+			gpioWrite (Vac_pump, 1) ;
+		}
 		serial_gage_read( );
-		if( vgage.gage > max_gage ) max_gage = vgage.gage;
+		gage_count++;	
 		
-/* Assume the YSi is set to millimho range
- * The ammeter default r_sense (R21) is 49.9K ohms	
- * multiply by 1000 to read in milliamps
- * Board 1 - R21 is shorted with a 1k ohm resistor
-*/ 
+		current_count = 0;
+		
 		adc_read( );
-		if( adc_channel == ysi ) i_measured = spi.ADC[adc_channel];
-		if( adc_channel == ammeter ) i_measured = spi.ADC[adc_channel] * 1000;
-		
-		fprintf( spi.fp, "cathode=%.4f  i=%.4e\n", spi.DAC[cathode], i_measured );	
+//		i_measured = spi.ADC[ammeter] / r_sense;
+//		i_measured = spi.ADC[ammeter] * 1000;
+		i_measured = spi.ADC[ysi];
+		fprintf( spi.fp, "cathode=%.4f  i=%.4e\n", 
+			  spi.DAC[cathode], i_measured );	
 		clock_t toc = clock();
 		tictoc = (double)(toc - tic) / CLOCKS_PER_SEC;
 		fprintf( I_fp, " %.4f %.1f %.8f\n", tictoc, vgage.gage, i_measured);	
-		fflush(I_fp);
-		usleep(100000) ;		
-		gage_count++;	
+
+		usleep(100000) ;
+		current_count++ ;
+		
 
 	}
-	spi.DAC[cathode] = 0.0;	// done - now turn everything off
+	spi.DAC[cathode] = 0.0;	// ammeter is hooked to cathode
 	gpioWrite(Vac, 0);
 	gpioWrite(Vac_pump, 0);
 
@@ -1650,7 +1606,7 @@ int   proton_current(int32_t adc_channel)
 	gnuplot_cmd(h1, plot_cmd) ;
 	gnuplot_cmd(h1, "set xlabel 'Time sec' ") ;
 	gnuplot_cmd(h1, "set ylabel 'H2 Pressure - Torr' ") ;
-	gnuplot_cmd(h1, "set y2label 'Proton Current - milliamps' ") ;
+	gnuplot_cmd(h1, "set y2label 'Proton Current - microamps' ") ;
 	gnuplot_cmd(h1, "set grid x y2 ") ;
 	gnuplot_cmd(h1, "set y2tics") ;
 	gnuplot_cmd(h1, "set autoscale y ") ;
@@ -1663,52 +1619,28 @@ int   proton_current(int32_t adc_channel)
 	gnuplot_close(h1) ;
 	printf("done\n");
 
-	fprintf( I_record, "P%2dv%04d-%.13s   maxP=%.0f\n", 
-			pelletnumber, Vx100,date_time, max_gage);
-	fclose(I_record);
-
 	return 0;
 	
 }
 ///////////////////////////////////////////
-void   proton_infusion( int32_t adc_channel )
-
+int   proton_infusion( )
 {
 	int32_t  time_count, Vx100, next_off, next_on, time_out, end;
 	int32_t  time_at_last_Imax, time_at_last_trigger;
-	float tictoc, local_Imax, Inow,last_Imax, global_Imax,i_measured;
-	char plot_cmd[96], y2label_cmd[80], plotfilename[32], units[4];
+	float tictoc, local_Imax, Inow,last_Imax, global_Imax;
+	char plot_cmd[96], plotfilename[32];
 
-
-/*
-	printf(" pellet number? \n");
-//	fflush(stdout);
-	scanf(" %d\n", &pelletnumber);
-//	fflush(stdin);
-	printf(" cathode voltage - \n");
-//	fflush(stdout);
-	scanf(" %f\n", &Vcathode);
-//	fflush(stdin);
+/*	printf(" pellet number? and cathode voltage =");
+	scanf("%d %f", &pelletnumber, &Vcathode);
+//	printf(" cathode voltage - ");
+//	scanf("%f", &Vcathode);
 	if(Vcathode > 0 ) Vcathode = -Vcathode;
-	printf(" pellet = %d  cathode = %f \n",pelletnumber, Vcathode);
-//	fflush(stdout);
+	printf("pellet = %d  cathode = %f \n",pelletnumber, Vcathode);
 */
-
-
 // serial_gage_init is called at top of main
 // amp_scale was calculated in dac_Sweep
 
-	Vx100 = abs(Vcathode * 100);
-	if( adc_channel == ysi ) {
-		strcpy ( units, "mS" );
-		strcpy (y2label_cmd, "set y2label 'Proton Conductance - mS' ");
-		sprintf(plotfilename,"HC%2dv%04d-%.13s.png",pelletnumber, Vx100,date_time);
-	}
-	if( adc_channel == ammeter ) {
-		strcpy ( units, "mA" );
-		strcpy (y2label_cmd, "set y2label 'Proton Current - mA' ");
-		sprintf(plotfilename,"HI%2dv%04d-%.13s.png",pelletnumber, Vx100,date_time);		
-	}
+	printf("starting proton infusion\n");
 	
 	FILE *I_fp;			// open plot file
 	I_fp = fopen( "I.dat", "w+" );
@@ -1716,31 +1648,32 @@ void   proton_infusion( int32_t adc_channel )
 //	Vcathode= -40.0;
 //	spi.DAC[cathode] = Vcathode;	// ammeter is hooked to cathode
 //	dac_write( );
-	serial_gage_read( );
 
 	gpioWrite(Vac, 1);			//suck out any residual H2 
 	gpioWrite(Vac_pump, 1);
-	usleep(50000);
+	usleep(500000);
 	gpioWrite(Vac, 0);
 	gpioWrite(Vac_pump, 0);
-	usleep(50000);
-		
+	usleep(500000);
+	
+	serial_gage_read( );
+	usleep(500000);
+	serial_gage_read( );
+	usleep(500000);
+	
 	clock_t tic = clock();
 
 	local_Imax = 0.0 ;
 	global_Imax = 0.0 ;
-	end = 200;			//duration of this H2 injection - usleep sets the time_count length
+	end = 600;			//duration of this H2 injection - usleep sets the time_count length
 	next_off = end;
 	next_on = 2;		//first H2 injection
 	time_out = 0;		// flag to suspend H2 injection
 	time_count = 0;
+	setbuf(stdout, NULL);
 	while (spi.task_status != kill && time_count < end ) { 
+//		if( time_count/end % 10 == 0) printf("infusion = %d ", time_count*100/end );
 
-		if( time_count*100 % end == 0 || time_count == 0) {	
-			printf("\r H2 = %3d%%   %.2f %s ", time_count * 100 /end, local_Imax,units);
-			fflush(stdout);
-		}
-		
 		if( time_count == next_on ) {
 			gpioWrite (H2_in, 1) ;	
 			gpioWrite (H2_out, 1) ;
@@ -1757,13 +1690,11 @@ void   proton_infusion( int32_t adc_channel )
 
 		serial_gage_read( );
 		adc_read( );
-		if( adc_channel == ysi ) i_measured = spi.ADC[adc_channel];
-		if( adc_channel == ammeter ) i_measured = spi.ADC[adc_channel] * 1000;
-		Inow = i_measured *10;
+		Inow = spi.ADC[ysi] *10;
 		clock_t toc = clock();
 		tictoc = (double)(toc - tic) / CLOCKS_PER_SEC;
 		fprintf( I_fp, " %.4f %.1f %.4f\n", tictoc, vgage.gage, Inow);	
-		usleep(1520000) ;
+		usleep(1000000) ;
 		time_count++;		
 			
 		if( Inow > local_Imax) {				// current is rising
@@ -1789,7 +1720,9 @@ void   proton_infusion( int32_t adc_channel )
 	gpioWrite (H2_out, 0) ;	
 	fclose(I_fp);
 
-	printf("\n   making plot file %s\n",plotfilename);
+	Vx100 = Vcathode * -100;
+    sprintf(plotfilename,"HI%2dv%04d-%.13s.png", pelletnumber, Vx100,date_time);
+	printf("making plot file %s\n",plotfilename);
 	gnuplot_ctrl    *h1 ;
 	h1 = gnuplot_init() ;
 	gnuplot_resetplot(h1) ;
@@ -1798,7 +1731,7 @@ void   proton_infusion( int32_t adc_channel )
 	gnuplot_cmd(h1, plot_cmd) ;
 	gnuplot_cmd(h1, "set xlabel 'Time sec' ") ;
 	gnuplot_cmd(h1, "set ylabel 'H2 Pressure - Torr' ") ;
-	gnuplot_cmd(h1, y2label_cmd) ;
+	gnuplot_cmd(h1, "set y2label 'Proton Conductance - mS' ") ;
 	gnuplot_cmd(h1, "set grid x y2 ") ;
 	gnuplot_cmd(h1, "set y2tics") ;
 	gnuplot_cmd(h1, "set autoscale y ") ;
@@ -1811,7 +1744,7 @@ void   proton_infusion( int32_t adc_channel )
 	gnuplot_close(h1) ;
 	printf("done\n");
 
-	return ;
+	return 0;
 	
 }
 
@@ -1828,19 +1761,18 @@ int   ammeter_test( )
 	
 	FILE *I_fp;			// open plot file
 	I_fp = fopen( "I.dat", "w+" );
-	Vx100 = fabs(Vcathode *100);
+	Vx100 = Vcathode * -100;
 	
 	count = 0;
 	while (count <= 10 ) {
 		spi.DAC[cathode] = Vcathode * (float)(count)/10.0;	// ammeter is hooked to cathode
-//		spi.DAC[dac_spare] = spi.DAC[cathode];
 		dac_write( );
-		usleep(2000) ;
+		usleep(20000) ;
 		adc_read( );
-		fprintf( I_fp, " %.6f %.8f\n", spi.DAC[cathode], spi.ADC[ammeter]*1000 );	// diff_amp voltage is divided by r_sense in adc_read
+		fprintf( I_fp, " %.6f %.8f\n", spi.DAC[cathode], spi.ADC[ammeter] );	 // no r_sense, result im mamps
 		count++ ;
 	}
-	spi.DAC[cathode] = 0.0;	//turn off cathode
+//	spi.DAC[cathode] = 0.0;	//turn off cathode
 	fclose(I_fp);
 
 
@@ -1848,8 +1780,8 @@ int   ammeter_test( )
 	printf("making plot file %s\n",plotfilename);
 	gnuplot_ctrl    *h1 ;
 	h1 = gnuplot_init() ;
-	gnuplot_resetplot(h1) ;
 	gnuplot_setstyle(h1, "lines") ;
+//	gnuplot_resetplot(h1) ;
     sprintf(plot_cmd,"set title ' ammeter vs. cathode  - %s", plotfilename);
 	gnuplot_cmd(h1, plot_cmd) ;
 	gnuplot_cmd(h1, "set xlabel 'V cathode' ") ;
@@ -1859,7 +1791,8 @@ int   ammeter_test( )
     sprintf(plot_cmd,"set output '%s'",plotfilename);
 	gnuplot_cmd(h1, plot_cmd) ;
 	gnuplot_cmd(h1, "set terminal png size 800,600") ;
-	gnuplot_cmd(h1, "plot './I.dat' using 1:2 with linespoints title 'ammeter' axes x1y1 ") ;
+	gnuplot_cmd(h1, "plot './I.dat' using 1:2 with linespoints title 'amm1' axes x1y1 , \
+						  '' using 1:3 with linespoints title 'amm2' axes x1y2 ") ;
 	gnuplot_close(h1) ;
 	printf("done\n");
 
@@ -2026,10 +1959,8 @@ int help_s_menu() {
 	"wb = ammeter_test - plots cathode vs ammeter \n"
 	"wk = dac_spare_test - plots dac_spare vs adc_spare \n"
 	"wd = dac_Sweep( V0, V1, dV, dT, channel,numpulses)\n"
-	"wi = proton current - plots pressure and ammeter across cathode cell\n"
-	"wj = proton current - plots pressure and ysi across cathode cell\n"
-	"wn = proton infusion - plots pressure and ammeter current as cell is saturated with H2\n"
-	"wy = proton infusion - plots pressure and YSI conductance as cell is saturated with H2\n"
+	"wi = proton current - plots pressure and current across cathode cell\n"
+	"wn = proton infusion - plots pressure and conductance as cell is saturated with H2\n"
 	"wl = logamp_Test - reads logamp voltage (spi.dat)\n"
 	"wt = att_Test - sets pll=100mhz & ramps PE43711 from 0to -31.75 db (spi.dat)\n"
 	"               insert -30db attenuator between RF-OUT & FORWARD ports\n"	"wp = pll_test\n"

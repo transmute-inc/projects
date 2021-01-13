@@ -1,0 +1,3 @@
+version=3
+opts=filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/speedtest-cli-$1\.tar\.gz/ \
+   https://github.com/sivel/speedtest-cli/tags .*/v?(\d\S*)\.tar\.gz

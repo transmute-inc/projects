@@ -1,0 +1,29 @@
+Source: speedtest-cli
+Section: utils
+Priority: optional
+Maintainer: Jonathan Carter <jcc@debian.org>
+Build-Depends: debhelper-compat (= 12), python3-all, python3-setuptools, dh-python
+Standards-Version: 4.4.1
+Homepage: https://github.com/sivel/speedtest-cli/
+Vcs-Git: https://salsa.debian.org/python-team/applications/speedtest-cli.git
+Vcs-Browser: https://salsa.debian.org/python-team/applications/speedtest-cli
+
+Package: speedtest-cli
+Architecture: all
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         ${python3:Depends},
+         python3-pkg-resources,
+         ca-certificates
+Description: Command line interface for testing internet bandwidth using speedtest.net
+ Speedtest.net is a webservice that allows you to test your broadband
+ connection by downloading a file from one of many Speedtest.net
+ servers from around the world.
+ .
+ This utility allows you to use the Speedtest.net service from the
+ command line.
+ .
+ Note: This tool accesses speedtest.net over http, while the web-based client
+ uses websockets. This tool has shown to become increasingly inacurate with
+ high-speed connections. For more information, see the readme on:
+ https://github.com/sivel/speedtest-cli

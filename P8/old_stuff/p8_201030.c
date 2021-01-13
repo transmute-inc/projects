@@ -1562,8 +1562,8 @@ void   mass_flow(int32_t number_puffs, int32_t H2_vac)
 ///////////////////////////////////////////
 int   proton_current(int32_t adc_channel)
 {
-	int32_t  gage_count, Vx100;
-	float i_measured, tictoc, max_gage;
+	int32_t  gage_count, t_pre, t_H2_on, t_H2_off, Vx100;
+	float i_measured, i_10, i_20, i_30, tictoc, max_gage;
 	char plot_cmd[96], plotfilename[32];
 
 /*	printf(" pellet number? and cathode voltage =");
@@ -1586,13 +1586,8 @@ int   proton_current(int32_t adc_channel)
 	spi.DAC[cathode] = Vcathode;	// ammeter is hooked to cathode
 	dac_write( );
 
-	gpioWrite(Vac, 1);				//suck out any residual H2 
-	gpioWrite(Vac_pump, 1);
+	mass_flow(5, Vac_pump);				//suck out any residual H2 
 	usleep(1000000);
-	gpioWrite(Vac, 0);
-	gpioWrite(Vac_pump, 0);
-	usleep(1000000);
-		
 	serial_gage_read( );
 	
 	clock_t tic = clock();
@@ -1601,19 +1596,38 @@ int   proton_current(int32_t adc_channel)
  * mount of H2 delivered depends of number of puffs and regulator setting on H2 tanks
  * or a number of sucks of vacuum
  */
-
+	t_pre = 10;
+	t_H2_on = 20;
+	t_H2_off = 40;
 
 	gage_count = 0;
-	while (spi.task_status != kill && gage_count <100) { 
+	while (spi.task_status != kill && gage_count <120) { 
 
-		if( gage_count == 10 ) mass_flow(2,H2_in);		// puff of H2
-		if( gage_count == 20 ) mass_flow(5,Vac_pump);	// a little suck
-		if( gage_count == 40 ) mass_flow(2,H2_in);		// puff of H2
-		if( gage_count == 50 ) mass_flow(5,Vac_pump);	// a little suck
-		if( gage_count == 60 ) gpioWrite(Vac_pump, 1);	// clean it up
-	
+		if( gage_count == t_pre ) {
+			adc_read( );
+			if( adc_channel == ysi ) i_10 = spi.ADC[adc_channel];
+			if( adc_channel == ammeter ) i_10 = spi.ADC[adc_channel] * 1000;
+			mass_flow(5,H2_in);
+		}
+		if( gage_count == t_H2_on ) {
+			adc_read( );
+			if( adc_channel == ysi ) i_20 = spi.ADC[adc_channel];
+			if( adc_channel == ammeter ) i_20 = spi.ADC[adc_channel] * 1000;
+			//mass_flow(2,H2_in);
+		}
+		if( gage_count == t_H2_off ) {
+			adc_read( );
+			if( adc_channel == ysi ) i_30 = spi.ADC[adc_channel];
+			if( adc_channel == ammeter ) i_30 = spi.ADC[adc_channel] * 1000;
+		}
+		if( gage_count == t_H2_off ) mass_flow(1,Vac_pump);	
+//		if( gage_count == t_H2_off + 10 ) mass_flow(1,Vac_pump);	
+//		if( gage_count == t_H2_off + 20 ) mass_flow(1,Vac_pump);	
+		if( gage_count == t_H2_off + 30 ) gpioWrite(Vac_pump, 1);
+;	
 		serial_gage_read( );
 		if( vgage.gage > max_gage ) max_gage = vgage.gage;
+		gage_count++;	
 		
 /* Assume the YSi is set to millimho range
  * The ammeter default r_sense (R21) is 49.9K ohms	
@@ -1630,7 +1644,6 @@ int   proton_current(int32_t adc_channel)
 		fprintf( I_fp, " %.4f %.1f %.8f\n", tictoc, vgage.gage, i_measured);	
 		fflush(I_fp);
 		usleep(100000) ;		
-		gage_count++;	
 
 	}
 	spi.DAC[cathode] = 0.0;	// done - now turn everything off
@@ -1663,8 +1676,8 @@ int   proton_current(int32_t adc_channel)
 	gnuplot_close(h1) ;
 	printf("done\n");
 
-	fprintf( I_record, "P%2dv%04d-%.13s   maxP=%.0f\n", 
-			pelletnumber, Vx100,date_time, max_gage);
+	fprintf( I_record, "P%2dv%04d-%.13s  %.5f %.5f %5f  maxP=%.0f\n", 
+			pelletnumber, Vx100,date_time, i_10, i_20, i_30, max_gage);
 	fclose(I_record);
 
 	return 0;

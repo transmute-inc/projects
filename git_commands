@@ -18,7 +18,7 @@ git status
 
 
 git log p6.c		to see changes to p6.c
-
+git diff
 
 To push the local repository to github, 
 
@@ -30,8 +30,17 @@ git push -u origin master  (user=transmute-inc  pass=Proton2020!)
 *******  clone repository after building a new rpi OS
 git clone https://github.com/transmute-inc/projects
 
+add file .gitignore to directory to avoid adding temporary files to repository.
+    *.o
+    *.png
+    *.dat
+    p8		(executable)
 
+vimdiff  
 
+Usefull git commands
+git clone --shallow  blah     #only downloads current snapshot - no history
+git pull
 
 ************** what to do it your head is detached ****************
 use This is a good answer, but I think there is no need for the temp branch

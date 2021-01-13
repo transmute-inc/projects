@@ -35,6 +35,10 @@ the Raspberry Pi Forums ( http://www.raspberrypi.org/forums/ ) for support.
 !!!-->	sudo chmod a+w /var/run/pigpio.pid              (otherwise, gpio will not init.) 
   pi4              pigpio.pid is not in /var for the pi4
 
+!!!-->	IF you get the error 		"Can't lock /var/run/pigpio.pid"
+	Find its process id (pid).	cat /var/run/pigpio.pid
+	Kill the program with		sudo kill -9 pid
+
 4.2 Install Gnuplot
 	sudo apt-get install gnuplot
 
@@ -112,6 +116,7 @@ Current status of 32G micro SD cards (190606)
 	#D  16g new
 	#E  16g backup of #F
 	#F  16g rpi4 Buster 10
+	#G  16g 
 
 	
 
@@ -135,8 +140,10 @@ Current status of 32G micro SD cards (190606)
 	github.com/andreafabrizi/Dropbox-Uploader.git
 	./dropbox_uploader.sh
 
-
-
+12. Speedtest can be run from a command window as follows:
+	sudo pip3 install speedtest-cli
+	speedtest-cli
+	
 
 
 

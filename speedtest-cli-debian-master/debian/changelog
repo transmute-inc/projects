@@ -1,0 +1,167 @@
+speedtest-cli (2.1.2-2) unstable; urgency=medium
+
+  [ Ondřej Nový ]
+  * Bump Standards-Version to 4.4.1.
+
+  [ Debian Janitor ]
+  * Trim trailing whitespace.
+  * Set upstream metadata fields: Bug-Database, Repository, Repository-
+    Browse.
+
+  [ Antonio Russo ]
+  * Remove un-necessary python-pkg-resources depends; Closes: #945711, #943801
+
+ -- Sandro Tosi <morph@debian.org>  Mon, 17 Feb 2020 15:46:02 -0500
+
+speedtest-cli (2.1.2-1) unstable; urgency=medium
+
+  * New upstream release
+  * Depend on ca-certificates (Closes: #934768)
+
+ -- Jonathan Carter <jcc@debian.org>  Mon, 26 Aug 2019 08:50:36 +0000
+
+speedtest-cli (2.1.1-2) unstable; urgency=medium
+
+  * Initial source-only upload.
+  * Update standards version to 4.4.0
+
+ -- Jonathan Carter <jcc@debian.org>  Tue, 09 Jul 2019 13:11:10 +0000
+
+speedtest-cli (2.1.1-1) unstable; urgency=medium
+
+  * New upstream release
+  * Update standards version to 4.3.0
+  * Upgrade to debhelper-compat (= 12)
+  * Remove anvient X-Python3-Version specification
+
+ -- Jonathan Carter <jcc@debian.org>  Thu, 14 Mar 2019 16:57:01 +0000
+
+speedtest-cli (2.0.2-1) unstable; urgency=medium
+
+  [ Ondřej Nový ]
+  * d/control: Remove ancient X-Python3-Version field
+
+  [ Jonathan Carter ]
+  * New upstream release
+
+ -- Jonathan Carter <jcc@debian.org>  Fri, 15 Jun 2018 13:52:44 +0200
+
+speedtest-cli (2.0.0-2) unstable; urgency=medium
+
+  [ Ondřej Nový ]
+  * d/copyright: Use https protocol in Format field
+
+  [ Jonathan Carter ]
+  * Update standards version to 4.1.4
+  * Add missing build-dependency: dh-python
+
+ -- Jonathan Carter <jcc@debian.org>  Tue, 17 Apr 2018 11:42:51 +0200
+
+speedtest-cli (2.0.0-1) unstable; urgency=medium
+
+  * New upstream release
+  * Update copyright years
+  * Update standards version to 4.1.3
+  * Update compat level to 11
+  * Use python3 instead of python2
+  * Abandon SVN in favour of salsa.debian.org
+
+ -- Jonathan Carter <jcc@debian.org>  Mon, 12 Feb 2018 15:12:09 +0200
+
+speedtest-cli (1.0.7-1) unstable; urgency=medium
+
+  * New upstream release
+  * Update maintainer e-mail address
+  * Update standards version to 4.1.1
+
+ -- Jonathan Carter <jcc@debian.org>  Tue, 17 Oct 2017 08:28:35 +0200
+
+speedtest-cli (1.0.6-2) unstable; urgency=medium
+
+  * Upload to unstable
+  * Fix typo in previous changelog entry
+
+ -- Jonathan Carter <jcarter@linux.com>  Tue, 11 Jul 2017 09:41:33 +0200
+
+speedtest-cli (1.0.6-1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Jonathan Carter <jcarter@linux.com>  Wed, 03 May 2017 19:17:22 +0200
+
+speedtest-cli (1.0.3-1) unstable; urgency=medium
+
+  * New upstream version
+  * Update copyright years
+  * Fix watch file
+
+ -- Jonathan Carter <jcarter@linux.com>  Mon, 03 Apr 2017 10:31:04 +0200
+
+speedtest-cli (1.0.2-1) unstable; urgency=medium
+
+  * New upstream version
+  * Update compat to 10 (no related changes)
+  * Update description to explain speed discrepancies
+  * Install man page via debian/manpages file
+
+ -- Jonathan Carter <jcarter@linux.com>  Mon, 20 Mar 2017 14:55:28 +0200
+
+speedtest-cli (1.0.0-1) unstable; urgency=medium
+
+  * New upstream version (closes: #844716)
+  * Update standards version to 3.9.8 (no changes)
+  * Update maintainer email address
+
+ -- Jonathan Carter <jcarter@linux.com>  Fri, 18 Nov 2016 20:27:32 +0200
+
+speedtest-cli (0.3.4-1) unstable; urgency=medium
+
+  * New upstream version
+
+ -- Jonathan Carter <jonathan@ubuntu.com>  Sun, 17 Jan 2016 20:56:52 -0500
+
+speedtest-cli (0.3.2-1) unstable; urgency=medium
+
+  * New upstream version
+
+ -- Jonathan Carter <jonathan@ubuntu.com>  Sat, 02 May 2015 14:37:32 +0200
+
+speedtest-cli (0.3.1-1) unstable; urgency=medium
+
+  * New upstream version
+  * Update standards version to 3.9.6
+
+ -- Jonathan Carter <jonathan@ubuntu.com>  Sat, 04 Oct 2014 10:40:38 +0200
+
+speedtest-cli (0.3.0-2) unstable; urgency=medium
+
+  * Add embedded twosix code license (Closes: #760907)
+
+ -- Jonathan Carter <jonathan@ubuntu.com>  Thu, 02 Oct 2014 20:44:15 +0200
+
+speedtest-cli (0.3.0-1) unstable; urgency=medium
+
+  * New upstream version
+  * Upload sponsored by Petter Reinholdtsen.
+
+ -- Jonathan Carter <jonathan@ubuntu.com>  Wed, 16 Jul 2014 20:18:09 +0200
+
+speedtest-cli (0.2.7-1) unstable; urgency=medium
+
+  * New upsteam version
+  * Now using manpage provided upstream
+  * Add CONTRIBUTING.md to docs
+
+ -- Jonathan Carter <jonathan@ubuntu.com>  Tue, 29 Apr 2014 19:04:15 +0200
+
+speedtest-cli (0.2.4-2) unstable; urgency=medium
+
+  * Add dependency for python-pkg-resources (Closes: 742861)
+
+ -- Jonathan Carter <jonathan@ubuntu.com>  Sat, 12 Apr 2014 21:53:14 +0200
+
+speedtest-cli (0.2.4-1) unstable; urgency=low
+
+  * Initial release (Closes: #736756)
+
+ -- Jonathan Carter <jonathan@ubuntu.com>  Sat, 25 Jan 2014 22:43:09 +0200
