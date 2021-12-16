@@ -99,6 +99,7 @@ SD disks must have different UUIDs to be mounted concurrently on the same system
 Current status of 32G micro SD cards (190606)
 	#5  32g debian 2.4.5 clone of #6 for Chris
 
+<<<<<<< HEAD
 	#1  32g fat32 free
 	#2  32g fat32 free
 	#3  32g debian 9.5 181011 copied to Bob
@@ -106,9 +107,15 @@ Current status of 32G micro SD cards (190606)
 	
 	#6  8g free fat32
 	#7  8g free fat32
+=======
+	#1  32g free
+	#2  32g free
+	#6  Webthings 1.0 (rpi3b in garage)	
+	#7  8g free
+>>>>>>> e4a76a42602c342c01ece26524a052fd4008758e
 	#8  8g music & X9 server installed software backup
-	#9  8G fat32 xfer drive
 
+<<<<<<< HEAD
 	#11 16g backup 190722  (9.4) 
 	#12 16g 	backup F 200423  Buster 10
 	#A  16g pi3 buster (10) 5.4.83-v7+   (pi proton)
@@ -119,6 +126,19 @@ Current status of 32G micro SD cards (190606)
 	#F  16g pi4 Buster 10  ************ currently P8 201106
 	#G  16g 
 	#H   8g Webthings 1.0 (rpi3b in garage)
+=======
+
+	#11 16g free 
+	#12 16g free
+	#A  16g pi3 buster (10) 5.4.83-v7+   (pi proton)
+	#B  16g free fat32
+	#C  16g backup of #A
+	#D  16g new
+	#E  16g 	backup of #F
+	#F  16g pi4 Buster 10  ************ currently P8 201106
+	#G  16g 
+	#H  16g
+>>>>>>> e4a76a42602c342c01ece26524a052fd4008758e
 
 	
 

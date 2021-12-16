@@ -25,6 +25,11 @@ To push the local repository to github,
 ( only once to start ) git remote add origin https://github.com/transmute-inc/projects.git
 git push -u origin master  (user=transmute-inc  pass=Proton2021!)
 
+*******
+
+Personal access token generated 211216 at https://github.com/settings/tokens using 
+https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-token
+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
 
 
 *******  clone repository after building a new rpi OS
