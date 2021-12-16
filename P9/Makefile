@@ -3,11 +3,11 @@
 
 CC 	= gcc
 CFLAGS 	= -Wall -ggdb -pthread -I. -lpigpio -lrt -lm
-DEPS 	= ~/projects/gnuplot/gnuplot_i.h ~/projects/P8/max2871.h
-OBJS 	= ~/projects/gnuplot/gnuplot_i.o p8.o
+DEPS 	= ~/projects/gnuplot/gnuplot_i.h ~/projects/P9/max2871.h
+OBJS 	= ~/projects/gnuplot/gnuplot_i.o p9.o
 
 %.o:	%.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-p8:	$(OBJS)
+p9:	$(OBJS)
 	$(CC)    -o $@ $^ $(CFLAGS)

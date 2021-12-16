@@ -2064,7 +2064,7 @@ float_t adc_read(int32_t channel)
 	eq.CJ[2] = buff_rx[1];
 	eq.CJ[3] = buff_rx[0];
 	spi.adc_raw[channel] = (float) eq.J / spi.adc_bits * Vref;
-//	fprintf( spi.fp, " adc<- %s = %.4f\n",  spi.adc_names[n], spi.adc[n]);
+//	fprintf( spi.fp, " adc<- %s = %.4f\n",  spi.adc_names[channel], spi.adc[channel]);
 	usleep(2000); 		//1000	
 
 

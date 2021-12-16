@@ -48,6 +48,7 @@ the Raspberry Pi Forums ( http://www.raspberrypi.org/forums/ ) for support.
 
 4.4 Update the OS		# www.raspberrypi.org/documentation/raspbian/
 	lsb_release -da			# current release
+	uname -r
 	sudo apt-get update
 	sudo apt-get upgrade
 	sudo apt-get dist-upgrade	# upgrade all installed packages
@@ -98,7 +99,7 @@ SD disks must have different UUIDs to be mounted concurrently on the same system
 Current status of 32G micro SD cards (190606)
 	#5  32g debian 2.4.5 clone of #6 for Chris
 
-	#1  32g Mozilla-IOT server Webthings
+	#1  32g fat32 free
 	#2  32g fat32 free
 	#3  32g debian 9.5 181011 copied to Bob
 	#4  32g clone of #6 180409
@@ -109,14 +110,15 @@ Current status of 32G micro SD cards (190606)
 	#9  8G fat32 xfer drive
 
 	#11 16g backup 190722  (9.4) 
-	#12 16g backup F 200423  Buster 10
-	#A  16g 
+	#12 16g 	backup F 200423  Buster 10
+	#A  16g pi3 buster (10) 5.4.83-v7+   (pi proton)
 	#B  16g free fat32
-	#C  16g backup of #A
-	#D  16g new
-	#E  16g backup of #F
-	#F  16g rpi4 Buster 10
+	#C  16g backup of #A 211215
+	#D  16g backup of RPI4 on 211209
+	#E  16g backup rpi4 on 211111 - rev2 --> rev6 dac, adc, gpio work
+	#F  16g pi4 Buster 10  ************ currently P8 201106
 	#G  16g 
+	#H   8g Webthings 1.0 (rpi3b in garage)
 
 	
 
@@ -144,6 +146,16 @@ Current status of 32G micro SD cards (190606)
 	sudo pip3 install speedtest-cli
 	speedtest-cli
 	
+13. rpi4 cannot connect via VNC. 
+	sudo nano /boot/config.txt     Uncomment # 
+		hdmi_force_hotplug=1
+		hdmi_group=2
+		hdmi_mode=69		reboot then set resolution in screen config
+
+14. Setup samba  https://pimylifeup.com/raspberry-pi-samba/
+	sudo apt-get install samba samba-common-bin
+	samba user is sampi  (no pass or kimh8989)
+
 
 
 

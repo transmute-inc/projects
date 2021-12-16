@@ -1,4 +1,4 @@
-#include <stdio.h>		//211022.0900
+#include <stdio.h>		//20180525.1738
 #include <stdlib.h>
 #include <stdint.h>  //int8_t,int16_t,int32_t,uint8_t,uint16_t,uint32_t
 #include <termios.h>
@@ -62,6 +62,7 @@
 #define kill		2		// threadstatus
 
 #define	Vref		2.534	// vref is common for adc & dac
+#define	adc_bits	16777215
 #define amp_scale	1.98	// diff-amp scaling factor for ammeter
 
 #define  forward	0		// AIN0P	cathode (vac) gage
@@ -122,11 +123,11 @@ typedef struct spi_control {
 	float_t attenuation;		// in dB
 
 
-	uint32_t adc_fd, adc_bits, adc_channel_rev6[8];
+	uint32_t adc_fd,  adc_channel_rev6[8];
 	uint8_t adc_reg[8];
 	uint8_t adc_status[8]; 
 	char adc_names[8][8];
-	float_t adc[8], adc_raw[8];			// adc voltage values
+	float_t adc[8];			// adc voltage values
 	float_t adc_gain[8];
 	float_t adc_offset[8];
 	float_t DB[3];			// log amp voltages converted to DB
@@ -155,7 +156,7 @@ int* ce_Test( );
 
 void adc_init( uint32_t mode );
 void adc_status( );
-float_t adc_read(int32_t channel);
+void adc_read( );
 
 void att_Set( float_t atten );
 void att_Test( );
@@ -332,29 +333,33 @@ osc:		gpioWrite (Sync_pin, 1);
 		}			
 		if (main_cmd == 'a') {		// puff of H2
 			mass_flow(1,H2_in);	//regulator setting on H2 tank
+			adc_read( );
 			serial_gage_read( );
-			printf( "ammeter=%.6f gage=%.3f  H2=%.3f Vac=%3f", adc_read(ammeter)*1000, vgage.gage, vgage.gage_hydrogen, vgage.gage_vacuum);
+			printf( "ammeter=%.6f gage=%.3f  H2=%.3f Vac=%3f", spi.adc[ammeter]*1000, vgage.gage, vgage.gage_hydrogen, vgage.gage_vacuum);
 			fflush(stdout);
 		}
 		if (main_cmd == 's') {		// suck of vac
 			mass_flow(1,Vac);
+			adc_read( );
 			serial_gage_read( );
-			printf( "ammeter=%.6f gage=%.3f  H2=%.3f Vac=%3f", adc_read(ammeter)*1000, vgage.gage, vgage.gage_hydrogen, vgage.gage_vacuum);
+			printf( "ammeter=%.6f gage=%.3f  H2=%.3f Vac=%3f", spi.adc[ammeter]*1000, vgage.gage, vgage.gage_hydrogen, vgage.gage_vacuum);
 			fflush(stdout);
 		}
 	if (main_cmd == 'd')		// vac on
 		{
 			gpioWrite (Vac_pump, 1);
 			gpioWrite (Vac,      1);
+			adc_read( );
 			serial_gage_read( );
-			printf( "ammeter=%.6f gage=%.3f  H2=%.3f Vac=%3f", adc_read(ammeter)*1000, vgage.gage, vgage.gage_hydrogen, vgage.gage_vacuum);
+			printf( "ammeter=%.6f gage=%.3f  H2=%.3f Vac=%3f", spi.adc[ammeter]*1000, vgage.gage, vgage.gage_hydrogen, vgage.gage_vacuum);
 			fflush(stdout);
 		}	
 		if (main_cmd == 'f') {		// vac off
 			gpioWrite (Vac_pump, 0);
 			gpioWrite (Vac,      0);
+			adc_read( );
 			serial_gage_read( );
-			printf( "ammeter=%.6f gage=%.3f  H2=%.3f Vac=%3f", adc_read(ammeter)*1000, vgage.gage, vgage.gage_hydrogen, vgage.gage_vacuum);
+			printf( "ammeter=%.6f gage=%.3f  H2=%.3f Vac=%3f", spi.adc[ammeter]*1000, vgage.gage, vgage.gage_hydrogen, vgage.gage_vacuum);
 			fflush(stdout);
 		}
 		if (main_cmd == 'h') {	// print help menu
@@ -477,31 +482,52 @@ void *_vac_thread( void *vv )
 {
 	vac* v = (vac*) vv; 				// cast the void* to struct type
   
-//	int32_t h2_in_delay=10000, h2_out_delay=5000, pump_delay=100000, vac_delay=40000;
-	int32_t h2_out_delay=5000, vac_delay=40000;
+	int32_t h2_in_delay=10000, h2_out_delay=5000, pump_delay=100000, vac_delay=40000;
 	int32_t dwell_time=800000, count=0;
 	FILE *fp;
-	float_t hi=v->set_point+v->deadband/2,low=v->set_point-v->deadband/2 ;
+	float_t hi=v->set_point+v->deadband/2,low=v->set_point-v->deadband/2;
 
 	fp = fopen( "gage.dat", "w+" );
 
+MEASURE: 
+	if (v->thread_status == kill ) { goto EXIT; }
 
-	while ( v->thread_status != kill )  {   //   THIS ROUTINE NEEDS WORK, See old version
-		usleep(dwell_time);	
-		v->gage = adc_read(gage_H2);
-		count = count + 1;
-		fprintf( fp, "%d, %.4f\n", count, v->gage);
+	usleep(dwell_time);	
+	adc_read( );
+	v->gage = vgage.gage_hydrogen;
+	count = count + 1;
+	fprintf( fp, "%d, %.4f\n", count, v->gage);
 
-		if( v->gage > hi) {					//too 1, pulse vac
-			vac_delay = 500000 * (v->gage-hi) / hi;
-			if( vac_delay > 2000 ) mass_flow(2, Vac_pump);
-		}else if( v->gage < low) {			//too 0, pulse H2
-			h2_out_delay = 20000 * (low- v->gage) / low;
-			if( h2_out_delay > 2000 ) mass_flow(2, H2_in);
-		}
+
+
+	if( v->gage > hi) 
+	{									//too 1, pulse vac
+		vac_delay = 500000 * (v->gage-hi) / hi;
+		if( vac_delay > 2000 ) 
+		{
+			gpioWrite (Vac_pump, 1);	usleep(pump_delay);
+			gpioWrite (Vac_pump,  0);	usleep(10000);
+			gpioWrite (Vac,1);			usleep(vac_delay);
+			gpioWrite (Vac, 0);
+		}	
+		goto MEASURE;
 	}
+		
+	if( v->gage < low) 
+	{									//too 0, pulse H2
+		h2_out_delay = 20000 * (low- v->gage) / low;
+		if( h2_out_delay > 2000 )
+		{
+			gpioWrite (H2_in, 1);		usleep(h2_in_delay) ;
+			gpioWrite (H2_in,  0);		usleep(10000) ;
+			gpioWrite (H2_out,1);		usleep(h2_out_delay) ;
+			gpioWrite (H2_out, 0) ;
+		}
+		goto MEASURE;
+	}
+	goto MEASURE;
 
-									// turn everything off before exit
+EXIT:									// turn everything off before exit
 	gpioWrite (Vac_pump, 0);
 	gpioWrite (Vac, 0);
 	gpioWrite (H2_in,  0);	
@@ -829,7 +855,7 @@ int serial_gage_read( )
 				}
 			}
 		    vgage.gage = atof(e);
-		    adc_read(gage_H2);									// reads gage voltage
+		    adc_read();									// reads gage voltage
 //		    vgage.gage_hydrogen = pow( 10, spi.adc[gage_Vac]/0.2446 - 6  );    //ratio of voltage divider
 //			printf ( " string=%s   %.4f\n", e,vgage.gage );
 //			printf ( " gage=%.4f  voltage= %.5f gage_Vac adc=%.5f temp=%.5f\n", vgage.gage, vgage.gage_hydrogen, spi.adc[4] );
@@ -895,7 +921,7 @@ int   sweep_pressure( )
 	gpioWrite(Vac_pump, 1);
 	usleep(2000000) ;				// 2 sec	
 
-	adc_read(ammeter);					//clear out previous read
+	adc_read( );					//clear out previous read
 	
 /*
  * mass_flow delivers a number of puffs of H2 
@@ -919,7 +945,8 @@ int   sweep_pressure( )
 			
 		i=0;
 		while (i < 5) {		
-			i_measured = adc_read(ammeter) * 1000000;
+			adc_read( );
+			i_measured = spi.adc[ammeter] * 1000000;
 			x = (gage_count*10 + i*2);
 			x = x /100;			
 			fprintf( I_fp, " %.4f %.1f %.8f\n", x, vgage.gage_hydrogen, i_measured);	
@@ -985,7 +1012,7 @@ int   grid_pulse()
 
 	dac_write(e1, 0.0 );
 	dac_write(anode, 0.0 );
-	adc_read(ammeter );				//clear out previous read
+	adc_read( );				//clear out previous read
 
 	gpioWrite(Vac, 1);			//suck out any residual H2 
 	gpioWrite(Vac_pump, 1);
@@ -1023,10 +1050,11 @@ int   grid_pulse()
 		
 		i=0;
 		while (i < 5) {
-			i_measured = adc_read(ammeter) * 1000000;	//microamps
+			adc_read( );
+			i_measured = spi.adc[ammeter] * 1000000;	//microamps
 			x = (gage_count*10 + i*2);
 			x = x /100;
-			fprintf( I_fp, " %.2f %.1f %.3f %.1f %.1f\n", x, adc_read(gage_H2), 
+			fprintf( I_fp, " %.2f %.1f %.3f %.1f %.1f\n", x, vgage.gage_hydrogen, 
 						i_measured, spi.dac[grid], spi.dac[anode] );	
 			usleep(10000) ;								//0.010sec	
 			i++;
@@ -1181,11 +1209,12 @@ void   proton_infusion( int32_t adc_channel )
 			gpioWrite (H2_out, 0) ;
 		}
 
-		i_measured = adc_read(adc_channel) * 1000000;
+		adc_read( );
+		i_measured = spi.adc[adc_channel] * 1000000;
 		Inow = i_measured *10;
 		clock_t toc = clock();
 		tictoc = (double)(toc - tic) / CLOCKS_PER_SEC;
-		fprintf( I_fp, " %.4f %.1f %.6f\n", tictoc, adc_read(gage_H2), Inow);	
+		fprintf( I_fp, " %.4f %.1f %.6f\n", tictoc, vgage.gage_hydrogen, Inow);	
 		usleep(1500000) ;
 		time_count++;		
 			
@@ -1245,7 +1274,6 @@ int   sweep_grid()
 {
 	int32_t count, Vx100 ;
 	char plot_cmd[80], plotfilename[32];
-	float_t v_set;
 
 // grid is actually hooked to e1
 
@@ -1257,10 +1285,11 @@ int   sweep_grid()
 	
 	count = 0;
 	while (count <= 10 ) {
-		v_set = Vcathode * (float)(count)/10.0;	// ammeter is hooked to cathode
-		dac_write(e1, v_set );
+		spi.dac[e1] = Vcathode * (float)(count)/10.0;	// ammeter is hooked to cathode
+		dac_write(e1, spi.dac[e1] );
 		usleep(200000) ;
-		fprintf( I_fp, " %.6f %.8f\n", v_set, adc_read(ammeter)*1000000 );	// diff_amp voltage is divided by r_sense in adc_read
+		adc_read( );
+		fprintf( I_fp, " %.6f %.8f\n", spi.dac[e1], spi.adc[ammeter]*1000000 );	// diff_amp voltage is divided by r_sense in adc_read
 		count++ ;
 	}
 
@@ -1305,15 +1334,15 @@ int   sweep_cathode( )
 	FILE *I_fp;			// open plot file
 	I_fp = fopen( "I.dat", "w+" );
 	Vx100 = fabs(Vcathode *100);
-	i_sense = adc_read(ammeter);						//clear out previous read
+	adc_read( );						//clear out previous read
 	
 	count = 0;
 	while (count <= 100 ) {
 		v_set = Vcathode * (float)(count)/100.0;	// ammeter is hooked to cathode
 		dac_write(cathode, v_set);
 		usleep(5000) ;
-		i_sense = adc_read(ammeter);
-		fprintf( I_fp, " %.6f %.8f\n", v_set, i_sense*1000 );	// diff_amp voltage is divided by r_sense in adc_read
+		adc_read( );
+		fprintf( I_fp, " %.6f %.8f\n", v_set, spi.adc[ammeter]*1000 );	// diff_amp voltage is divided by r_sense in adc_read
 		count++ ;
 	}
 
@@ -1405,7 +1434,8 @@ int   dac_spare_test( )
 		Vset = Vcathode * (float)(count)/10.0;	
 		dac_write(dac_spare, Vset );
 		usleep(20000) ;
-		fprintf( I_fp, " %.8f %.8f \n", Vset, adc_read(adc_spare)  );
+		adc_read( );
+		fprintf( I_fp, " %.8f %.8f \n", Vset, spi.adc[adc_spare]  );
 		count++ ;
 	}
 
@@ -1471,7 +1501,7 @@ void find_resonance(uint32_t start, uint32_t end, uint32_t df, uint32_t dt){
 		i=i+1;
 		pll_SetIntfreq( megahz );
 		usleep(10);
-		adc_read(forward);					//// Need to fix all adc_read calls
+		adc_read();
 		if( spi.adc[forward] > for_max) {
 			for_max = spi.adc[forward] ;
 			for_max_mhz = megahz; }
@@ -1904,7 +1934,7 @@ void att_Test( ) {
 	delta = 0.0;
 	while(delta <= 32.0){
 		att_Set( delta );	
-		adc_read(forward);
+		adc_read();
 		fprintf( spi.fp, " forward  delta= %.4f,  db= %.4f\n", delta,spi.DB[forward] );
 		delta = delta + 4.0;
 		usleep(1000);
@@ -1939,25 +1969,22 @@ void adc_init( uint32_t mode )
 {
 	char buff[4];
 
+	spi.adc_reg[0] = 0xdd;
+	spi.adc_reg[1] = 0xdf;
+	spi.adc_reg[2] = 0xe1;
+	spi.adc_reg[3] = 0xe3;
+	spi.adc_reg[4] = 0xe5;
+	spi.adc_reg[5] = 0xe7;
+	
 	strcpy(spi.adc_names[0],"forward");
-	strcpy(spi.adc_names[1],"ammeter");
+	strcpy(spi.adc_names[1],"reverse");
 	strcpy(spi.adc_names[2],"ammeter");
 	strcpy(spi.adc_names[3],"spare");
 	strcpy(spi.adc_names[4],"amm2");
 	strcpy(spi.adc_names[5],"dactest");
-
-	if( board_rev ==2) {
-		spi.adc_bits = 16777215;		// 2^24-1
-
-		spi.adc_reg[0] = 0xdd;
-		spi.adc_reg[1] = 0xdf;
-		spi.adc_reg[2] = 0xe1;
-		spi.adc_reg[3] = 0xe3;
-		spi.adc_reg[4] = 0xe5;
-		spi.adc_reg[5] = 0xe7;
 	
 	
-		if(mode==1){
+if(mode==1){
 /*CTL1 =C2                   2    F
  * perform self calibration	00
  * powerdown =RESET  		  10
@@ -1966,9 +1993,11 @@ void adc_init( uint32_t mode )
  * Scycle = single cycle		  1
  * Contsc = single cycle           1
 */ 
-			buff[0] = 0xc2;		// CTRL1
-			buff[1] = 0x2f;		// CTRL1 data
-			spiWrite(spi.adc_fd, buff, 2);				usleep(200000);
+	buff[0] = 0xc2;		// CTRL1
+	buff[1] = 0x2f;		// CTRL1 data
+	spiWrite(spi.adc_fd, buff, 2);
+	usleep(200000);
+		 
 
 /*SEQ = D0					0    2
  * mux=ch 4					000
@@ -1977,14 +2006,15 @@ void adc_init( uint32_t mode )
  * mdren=0					       1
  * rdyben=0					        0
 */
-			buff[0] = 0xd0;		//SEQ  command
-			buff[1] = 0x02;		//SEQ  data
-			spiWrite(spi.adc_fd, buff, 2);
-			usleep(1000);
-		}
+	buff[0] = 0xd0;		//SEQ  command
+	buff[1] = 0x02;		//SEQ  data
+	spiWrite(spi.adc_fd, buff, 2);
+	usleep(1000); 	
+	
+}
 
 
-		if(mode==2){
+	if(mode==2){
 
 /*CTL1 =C2                   2    E
  * perform self calibration	00
@@ -1993,11 +2023,11 @@ void adc_init( uint32_t mode )
  * format = offset binary 	     1
  * Scycle = single cycle		  1
  * Contsc = single cycle           0  */
-			buff[0] = 0xc2;		// CTRL1
-			buff[1] = 0x2e;		// CTRL1 data
-//			buff[1] = 0x2f;		// CTRL1 data
-			spiWrite(spi.adc_fd, buff, 2);
-			usleep(100); 
+	buff[0] = 0xc2;		// CTRL1
+	buff[1] = 0x2e;		// CTRL1 data
+//	buff[1] = 0x2f;		// CTRL1 data
+	spiWrite(spi.adc_fd, buff, 2);
+	usleep(100); 
 
 /*SEQ = D0					0    A
  * mux=0 					000
@@ -2006,31 +2036,27 @@ void adc_init( uint32_t mode )
  * mdren=1					       1
  * rdyben=0					        0
 */
-			buff[0] = 0xd0;		//SEQ  command
-			buff[1] = 0x0a;		//select seq mod 2, enable delay
-			spiWrite(spi.adc_fd, buff, 2);
+	buff[0] = 0xd0;		//SEQ  command
+	buff[1] = 0x0a;		//select seq mod 2, enable delay
+	spiWrite(spi.adc_fd, buff, 2);
 		
-			buff[0] = 0xca;		// DELAY
-			buff[1] = 0x00;		//    origianl = f0
-			buff[2] = 0x00;
-			spiWrite(spi.adc_fd, buff, 3);
+	buff[0] = 0xca;		// DELAY
+	buff[1] = 0x00;		//    origianl = f0
+	buff[2] = 0x00;
+	spiWrite(spi.adc_fd, buff, 3);
 			
-			buff[0] = 0xce;		// ==> CHMAP0
-			buff[1] = 0x0e;		// chan 3
-			buff[2] = 0x0a;		// chan 2
-			buff[3] = 0x06;		// chan 1
-			spiWrite(spi.adc_fd, buff, 4);
+	buff[0] = 0xce;		// ==> CHMAP0
+	buff[1] = 0x0e;		// chan 3
+	buff[2] = 0x0a;		// chan 2
+	buff[3] = 0x06;		// chan 1
+	spiWrite(spi.adc_fd, buff, 4);
 		
-			buff[0] = 0xcc;		// ==> CHMAP1
-			buff[1] = 0x1a;		// chan 6
-			buff[2] = 0x16;		// chan 5
-			buff[3] = 0x12;		// chan 4
-			spiWrite(spi.adc_fd, buff, 4);
-		}
-	}
-	if( board_rev ==6) {
-		spi.adc_bits = 262143;		//2^18 -1
-	}
+	buff[0] = 0xcc;		// ==> CHMAP1
+	buff[1] = 0x1a;		// chan 6
+	buff[2] = 0x16;		// chan 5
+	buff[3] = 0x12;		// chan 4
+	spiWrite(spi.adc_fd, buff, 4);
+	}	
 }
 
 ///////////////////////////////////////////
@@ -2045,10 +2071,11 @@ void adc_status( )
 }
 
 ///////////////////////////////////////////
-float_t adc_read(int32_t channel)
+void adc_read( )
 {
 	union equiv { uint32_t J; char CJ[4]; } eq;
 	char buff[4], buff_rx[4];
+	int32_t n,num_channels;
 
 /*Convert					B    E
  * convert code				1011
@@ -2056,27 +2083,31 @@ float_t adc_read(int32_t channel)
 	buff[0] = 0xba;					// Convert! (6400sps)
 	spiWrite(spi.adc_fd, buff, 1);
 	usleep(2000); 			 			
+	num_channels = 6;											//TEMP!!!!! 5->1
+	for ( n=0; n<num_channels; n++) {
+//		n=2; // ammeter
+		buff[0] = spi.adc_reg[n];	//select a channel to read
+		spiXfer(spi.adc_fd, buff, buff_rx, 4);
+		eq.CJ[0] = buff_rx[3];
+		eq.CJ[1] = buff_rx[2];
+		eq.CJ[2] = buff_rx[1];
+		eq.CJ[3] = buff_rx[0];
+		spi.adc[n] = (float) eq.J / adc_bits * Vref;
+//		fprintf( spi.fp, " adc<- %s = %.4f\n",  spi.adc_names[n], spi.adc[n]);
+		usleep(2000); 		//1000	
 
-	buff[0] = spi.adc_reg[channel];	//select a channel to read
-	spiXfer(spi.adc_fd, buff, buff_rx, 4);
-	eq.CJ[0] = buff_rx[3];
-	eq.CJ[1] = buff_rx[2];
-	eq.CJ[2] = buff_rx[1];
-	eq.CJ[3] = buff_rx[0];
-	spi.adc_raw[channel] = (float) eq.J / spi.adc_bits * Vref;
-//	fprintf( spi.fp, " adc<- %s = %.4f\n",  spi.adc_names[n], spi.adc[n]);
-	usleep(2000); 		//1000	
 
+	}
 
 //  make any instrument corrections here
 //	1-in ammeter_test, don't divide ammeter by rsense on the I.dat write
 //  2- run ammeter_test and find the offset and slope factor from I.dat
 //	3- divide by 2 - the diffamp circuit doubles the voltage across Rsense
 //	4- restore the ammeter_test divide by Rsense.	
-	if(channel == ammeter) spi.adc[ammeter] = (spi.adc_raw[ammeter] ) * .96 /2.0 / r_sense; 
-	if(channel == adc_spare) spi.adc[adc_spare] = (spi.adc_raw[adc_spare] -0.00358) * 0.99 ; 
-	if(channel == gage_H2) spi.adc[gage_H2] = pow( 10, spi.adc_raw[gage_H2]/0.24485 - 6  );    //ratio of voltage divider
-	if(channel == gage_Vac) spi.adc[gage_Vac]  = pow( 10, spi.adc_raw[gage_Vac]/0.24605 - 6  );    //ratio of voltage divider
+		spi.adc[ammeter] = (spi.adc[ammeter] ) * .96 /2.0 / r_sense; 
+		spi.adc[adc_spare] = (spi.adc[adc_spare] -0.00358) * 0.99 ; 
+		vgage.gage_hydrogen = pow( 10, spi.adc[gage_H2]/0.24485 - 6  );    //ratio of voltage divider
+		vgage.gage_vacuum = pow( 10, spi.adc[gage_Vac]/0.24605 - 6  );    //ratio of voltage divider
 //		spi.DB[forward] = spi.adc[forward] /0.021 - 87; //convert to dBv
 //		spi.DB[reflected] = spi.adc[reflected] /0.021 - 87;
 //		spi.DB[sniffer] = spi.adc[sniffer] /0.021 - 87;	
@@ -2084,7 +2115,7 @@ float_t adc_read(int32_t channel)
 	fprintf( spi.fp, "adc[0-5]= %.6f, %.6f, %.6f, %.6f, %.6f, %.6f\n",
 	spi.adc[0],spi.adc[1],spi.adc[2],spi.adc[3],spi.adc[4],spi.adc[5]);
 	
-	return(spi.adc[channel]);
+	return;
 }
 
 ///////////////////////////////////////////
@@ -2108,19 +2139,19 @@ void dac_adc_Test( )  {
 		dac_write(dac_spare, 1);
 		gpioWrite(Sync_pin, 1);
 
+		adc_read( );
 /* 
  * comment out the scaling of ammeter in adc read to find out what scale 
  * value to use then update the scale factor in adc_read
 */
-		v_measured = adc_read(cathode);
-		i_measured = adc_read(ammeter) ;
-		i_calc = (v_measured)/ (r_proton+r_sense) ;  // e = r * i(tot)
+		i_calc = (spi.dac[cathode] + 0.06)/ (r_proton+r_sense) ;  // e = r * i(tot)
 		v_calc = r_sense * i_calc;
 		ir_proton = r_proton * i_calc;
-		scale = -  v_calc / i_measured ;
-	
-		fprintf( spi.fp, " v_meas=%.4f  v_calc=%.4f  i_meas=%10.3e   i_calc=%10.3e v_p=%.4f scale=%.6f\n", 
-		            v_measured,  v_calc,     i_measured,   i_calc, ir_proton, scale  );
+		scale = -  v_calc / spi.adc[ammeter];
+		v_measured = spi.adc[ammeter] * scale;  // diffamp = 20x v_drop across r_sense;  needed adjustment
+		i_measured = v_measured / r_sense;		
+		fprintf( spi.fp, "cathode=%.4f v_meas=%.4f  v_calc=%.4f  i_meas=%10.3e   i_calc=%10.3e v_p=%.4f scale=%.6f\n", 
+		           spi.dac[cathode], v_measured,  v_calc,     i_measured,   i_calc, ir_proton, scale  );
 		
 
 
@@ -2133,8 +2164,10 @@ void dac_adc_Test( )  {
 
 		gpioWrite(Sync_pin, 0);
 
+		adc_read( );
 		fprintf( spi.fp, "%d, DAC=%.4f  ADC=%.4f\n", 
-		  count, v_measured, i_measured);	
+//		  count, spi.dac[dac_spare], spi.adc[adc_spare]);	
+		  count, spi.dac[cathode], spi.adc[ammeter]);	
 		usleep(5000000);
 		
 	}
@@ -2150,7 +2183,7 @@ void dac_adc_Test( )  {
 ///////////////////////////////////////////
 void dac_Sweep(float_t start, float_t end, float_t dv, int32_t dt, int32_t channel, int32_t num_pulses, float_t r_proton){
 	int32_t count, n;
-	float_t i_calc, v_calc, i_measured, cat_corrected, v_set;
+	float_t i_calc, v_calc, i_measured, cat_corrected;
 
 /* start, dv, end in dbm,   dt in usec
  * calling routine passes a voltage (0-2.44v) on one of the eight dac channels  
@@ -2162,44 +2195,57 @@ void dac_Sweep(float_t start, float_t end, float_t dv, int32_t dt, int32_t chann
 
 	count = 1;
 	n=0;	
-	v_set = start;
+	spi.dac[channel] = start;
 
 	fprintf( spi.fp, "sweep from %.1f to %.1f  across r_proton=%.0f   %s\n",  
 				start, end, r_proton, date_time  );
 
 
 	while ( count <= num_pulses && spi.task_status != kill) {
-		while ( v_set < end ) {			//sweep up
+		while ( spi.dac[channel] < end ) {			//sweep up
 			gpioWrite (Sync_pin,  n);		// use gpio4 as a sync for the o´scope
 			if(n == 0){n=1;}else{n=0;}		
-			dac_write(channel, v_set );
+			dac_write(channel, spi.dac[channel] );
 			usleep(50);	
+			adc_read( );
 			usleep(dt);
 
-			cat_corrected = v_set + 0.062;		
-			i_calc = cat_corrected/(r_proton + r_sense);	
-			v_calc = r_sense * i_calc;  // e = r * i(tot)
-			i_measured = adc_read(ammeter);					
-			fprintf( spi.fp, "cathode=%.4f v_calc=%.4f   ammeter=%.4f   i_calc=%.4e \n",  
-					cat_corrected, v_calc, i_measured, i_calc );
-
-			v_set = v_set + dv;
+			if(channel == cathode) {	
+				cat_corrected = spi.dac[cathode] + 0.062;		
+				i_calc = cat_corrected/(r_proton + r_sense);	
+				v_calc = r_sense * i_calc;  // e = r * i(tot)
+				i_measured = spi.adc[ammeter];					
+				fprintf( spi.fp, "cathode=%.4f v_calc=%.4f   ammeter=%.4f   i_calc=%.4e  I=%.4e\n",  
+							cat_corrected, v_calc, spi.adc[ammeter], i_calc,  i_measured );
+			}
+			if(channel == dac_spare) {
+				fprintf( spi.fp, " %d  %s=%.3f  measured=%.3f\n", 
+				count, spi.dac_names[channel], spi.dac[channel], (spi.adc[adc_spare]-0.0034) * 0.99);
+			}	
+			spi.dac[channel] = spi.dac[channel] + dv;
 		}
 		
-		while ( v_set > start ) {			//sweep down
+		while ( spi.dac[channel] > start ) {			//sweep down
 			gpioWrite (Sync_pin,  n);		// use gpio4 as a sync for the o´scope
 			if(n == 0){n=1;}else{n=0;}
-			dac_write(channel, v_set );
+			dac_write(channel, spi.dac[channel] );
+			usleep(50);	
+			adc_read( );
 			usleep(dt);
 
-			cat_corrected = v_set + 0.062;		
-			i_calc = cat_corrected/(r_proton + r_sense);	
-			v_calc = r_sense * i_calc;  // e = r * i(tot)
-			i_measured = adc_read(ammeter);					
-			fprintf( spi.fp, "cathode=%.4f v_calc=%.4f   I=%.4e   i_calc=%.4e\n",  
-						cat_corrected, v_calc, i_measured, i_calc  );
-	
-			v_set = v_set - dv;
+			if(channel == cathode) {
+				cat_corrected = spi.dac[cathode] + 0.062;		
+				i_calc = cat_corrected/(r_proton + r_sense);	
+				v_calc = r_sense * i_calc;  // e = r * i(tot)
+				i_measured = spi.adc[ammeter];					
+				fprintf( spi.fp, "cathode=%.4f v_calc=%.4f   ammeter=%.4f   i_calc=%.4e  I=%.4e\n",  
+							cat_corrected, v_calc, spi.adc[ammeter], i_calc,  i_measured );
+			}
+			if(channel == dac_spare) {
+				fprintf( spi.fp, " %d  %s=%.3f  measured=%.3f\n", 
+				count, spi.dac_names[channel], spi.dac[channel], (spi.adc[adc_spare]-0.0034) * 0.99);
+			}	
+			spi.dac[channel] = spi.dac[channel] - dv;
 		}
 		count = count + 1;
 	}
@@ -2218,8 +2264,10 @@ void* logamp_Test( )
 	count=0;
 	while (spi.task_status != kill && count <10) {
 //		count++;
+		adc_read( );
 		printf( " Pfor= %.4f, Prev= %.4f\r", 
-			adc_read(forward), adc_read(reflected) );
+//		fprintf( spi.fp," Pfor= %.4f, Prev= %.4f\r", 
+			spi.adc[forward],spi.adc[reflected]);
 	}
 	return 0;
  
